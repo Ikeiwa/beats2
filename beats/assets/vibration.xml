@@ -1,0 +1,19 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<effectset>
+	<!-- Can mix Launcher effects and tweaked effects -->
+	<!-- effects from files override launcher effects -->
+	<effect name="tap" priority="0" launcher="0" />
+	<effect name="hold" priority="0" launcher="107" />
+	<effect name="miss" priority="1" launcher="7" />
+	<effect name="miss2" priority="1" launcher="6" />
+    <file filename="beats-droidx.ivt" modelname="DROIDX" />
+    <file filename="beats-nexusone.ivt" modelname="Nexus One">
+        <actuator devactuatortype="VIBE_DEVACTUATORTYPE_ERM" />
+    </file>
+    <file filename="beats-r1.ivt" modelname="Nexus One">
+        <actuator devactuatortype="VIBE_DEVACTUATORTYPE_PIEZO" />
+        <actuator devactuatortype="VIBE_DEVACTUATORTYPE_ERM" />
+    </file>
+    <file filename="beats-nexus-s.ivt" modelname="Nexus S" />
+    <file filename="beats.ivt" />
+</effectset>
