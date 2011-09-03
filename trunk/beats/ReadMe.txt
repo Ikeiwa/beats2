@@ -1,0 +1,4 @@
+This is the source code for Beats 1.7b FINAL (fully known as "Beats, Advanced Rhythm Game"). This is the final release of Beats and the subsequent open sourcing of the code. The decision was made to not open source Beats until now due to the extremely messy and disorganized nature of the code (just about every feature since Beats 1.0a is an ugly hack). While Beats is now under a modified BSD license, please do NOT fork the original source code, for sanity reasons. The source code should be used for reference purposes only. Development will continue in the new open source Beats2 project at http://code.google.com/p/beats2/
+
+~Keripo
+Last updated: 2011/09/03
