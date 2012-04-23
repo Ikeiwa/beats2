@@ -18,11 +18,12 @@ public class DisplayInfoScript : MonoBehaviour {
 	// Update is called once per frame
 	void Update () {		
 		string text = System.String.Format(
-			"Time = {0:f3}, Display = {1}x{2}, Mode = {3}{4}",
+			"Time = {0:f3}, Display = {1}x{2}, Mode = {3}-{4}{5}",
 			common.musicTime,
 			screenWidth,
 			screenHeight,
 			common.modeNum,
+			NotesData.DIFFICULTY_LEVEL,
 			(common.autoPlay) ? ", AutoPlay" : ""
 		);
 		textSprite.text = text;
