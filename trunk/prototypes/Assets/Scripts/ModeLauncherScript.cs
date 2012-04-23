@@ -24,6 +24,7 @@ public class ModeLauncherScript : MonoBehaviour {
 	// Fading
 	private FadeScript fade;
 	private GameObject descriptionCloseButton;
+	private exSpriteFont difficultyLabel;
 	private static bool descriptionViewed;
 	
 	// Use this for initialization
@@ -32,6 +33,9 @@ public class ModeLauncherScript : MonoBehaviour {
 		fade.FadeIn();
 		
 		descriptionCloseButton = GameObject.Find("DescriptionCloseButton");
+		difficultyLabel = GameObject.Find("DifficultyLabel").GetComponent<exSpriteFont>();
+		
+		difficultyLabel.text = NotesData.DIFFICULTY_LEVEL;
 		
 		musicSrc = (AudioSource)this.gameObject.GetComponent<AudioSource>();
 		musicSrc.Play();
@@ -107,6 +111,18 @@ public class ModeLauncherScript : MonoBehaviour {
 			} else {
 				if (name.Equals("Logo")) {
 					Application.OpenURL("http://beatsportable.com");
+				} else if (name.Equals("DifficultyIcon") || name.Equals("DifficultyLabel")) {
+					if (NotesData.DIFFICULTY_LEVEL.Equals(NotesData.DIFFICULTY_HARD)){
+						NotesData.SMOOOOCH_DATA = NotesData.SMOOOOCH_5_MOD;
+						NotesData.DIFFICULTY_LEVEL = NotesData.DIFFICULTY_EASY;
+					} else if (NotesData.DIFFICULTY_LEVEL.Equals(NotesData.DIFFICULTY_EASY)) {
+						NotesData.SMOOOOCH_DATA = NotesData.SMOOOOCH_7;
+						NotesData.DIFFICULTY_LEVEL = NotesData.DIFFICULTY_MEDIUM;
+					} else if (NotesData.DIFFICULTY_LEVEL.Equals(NotesData.DIFFICULTY_MEDIUM)) {
+						NotesData.SMOOOOCH_DATA = NotesData.SMOOOOCH_9;
+						NotesData.DIFFICULTY_LEVEL = NotesData.DIFFICULTY_HARD;
+					}
+					difficultyLabel.text = NotesData.DIFFICULTY_LEVEL;
 				} else {
 					foreach (string mode in modesList) {
 						if (name.Equals(mode)) {

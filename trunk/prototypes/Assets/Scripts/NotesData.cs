@@ -1197,6 +1197,10 @@ public class NotesData : MonoBehaviour {
 	};
 	
 	public static int[] SMOOOOCH_DATA = NotesData.SMOOOOCH_5_MOD;
-	public static string SONG_NAME = "SMOOOOCH_5";
+	
+	public static string DIFFICULTY_EASY = "Easy";
+	public static string DIFFICULTY_MEDIUM = "Medium";
+	public static string DIFFICULTY_HARD = "Hard";
+	public static string DIFFICULTY_LEVEL = DIFFICULTY_EASY;
 		
 }

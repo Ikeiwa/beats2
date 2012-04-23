@@ -7,7 +7,7 @@ public class FeedbackScript : MonoBehaviour {
 	
 	private const int COUNT_STARS		=  5;
 	private const int COUNT_CATEGORY	=  5;
-	private const int LAYER_STAR		= -1;
+	private const int LAYER_STAR		= -2;
 	
 	private Vector3 starInitPosition	= new Vector3( 20f,  64f, LAYER_STAR);
 	private Vector3 starColumnOffset	= new Vector3( 27f,   0f, 0f);

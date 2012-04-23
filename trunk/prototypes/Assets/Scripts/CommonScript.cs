@@ -125,7 +125,7 @@ public class CommonScript : MonoBehaviour {
 		}
 		
 		// Level name based on mode number
-		level = string.Format("{0}{1}", modeNum, screenType);
+		level = string.Format("{0}{1}-{2}", modeNum, screenType, NotesData.DIFFICULTY_LEVEL.Substring(0, 1));
 		
 		// Song started
 		tracker.Counter(level, "started");
