@@ -189,16 +189,16 @@
 			android:title="@string/vibrateTapTitle"
 			android:summary="@string/vibrateTapDesc"
 			android:key="@string/vibrateTap"
-			android:defaultValue="@string/vibrateTapDefault"
-			android:entries="@array/toggle"
-			android:entryValues="@array/toggleValues" />
+			android:defaultValue="@string/vibrateMissDefault"
+			android:entries="@array/vibrateMiss"
+			android:entryValues="@array/vibrateMissValues" />
 		<ListPreference
 			android:title="@string/vibrateHoldTitle"
 			android:summary="@string/vibrateHoldDesc"
 			android:key="@string/vibrateHold"
-			android:defaultValue="@string/vibrateHoldDefault"
-			android:entries="@array/toggle"
-			android:entryValues="@array/toggleValues" />
+			android:defaultValue="@string/vibrateMissDefault"
+			android:entries="@array/vibrateMiss"
+			android:entryValues="@array/vibrateMissValues" />
 		<ListPreference
 			android:title="@string/vibrateMissTitle"
 			android:summary="@string/vibrateMissDesc"

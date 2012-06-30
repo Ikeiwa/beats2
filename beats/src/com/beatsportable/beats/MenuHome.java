@@ -16,6 +16,9 @@ import android.view.*;
 import android.view.View.OnClickListener;
 import android.view.View.OnTouchListener;
 import android.widget.*;
+
+import com.google.ads.*;
+
 	
 public class MenuHome extends Activity {
 	
@@ -30,10 +33,11 @@ public class MenuHome extends Activity {
 	private String[] largeTextCountries= {"ko", "zh", "ru", "ja"};
 	private static Locale defaultLocale;
 	private Vibrator v;
+	private AdView adView;
 	
 	// Startup Warnings
 	private void versionCheck() {
-		if (Integer.parseInt(Build.VERSION.SDK) < 7 &&
+		if (Build.VERSION.SDK_INT < Build.VERSION_CODES.ECLAIR_MR1 &&
 			!Tools.getBooleanSetting(R.string.ignoreLegacyWarning, R.string.ignoreLegacyWarningDefault)) {
 			// Multitouch warning			
 			Tools.warning(
@@ -168,6 +172,7 @@ public class MenuHome extends Activity {
 				}
 			};
 			
+			
 			Tools.note(
 					Tools.getString(R.string.MenuHome_release_notes_title),
 					R.drawable.icon_small,
@@ -178,9 +183,6 @@ public class MenuHome extends Activity {
 					close_action,
 					R.string.ignoreBetaNotes
 					);
-			// Install new graphics on every update
-			// The file is extraction is fast enough that its not worth adding a setting for
-			Tools.installGraphics(this);
 		}
 		
 		if (!new File(Tools.getNoteSkinsDir()).canRead()) {
@@ -318,15 +320,33 @@ public class MenuHome extends Activity {
 		if (Tools.getBooleanSetting(R.string.resetSettings, R.string.resetSettingsDefault)) {
 			Tools.resetSettings();
 		}
+		/*
 		if (Tools.getBooleanSetting(R.string.additionalVibrations, R.string.additionalVibrationsDefault)) {
 			v = ((Vibrator) getSystemService(Context.VIBRATOR_SERVICE));
 			v.vibrate(300); // ready to rumble!
 		}
+		*/
 		Tools.setScreenDimensions();
 		updateCheck();
 		setupLayout();
 		versionCheck();
 		showNotes();
+		loadAds();
+	}
+	
+	private void loadAds() {
+		// Create the adView
+		adView = new AdView(this, AdSize.BANNER, Tools.getString(R.string.AdMob_key));
+		
+		// Lookup your LinearLayout assuming it’s been given
+		// the attribute android:id="@+id/mainLayout"
+		RelativeLayout layout = (RelativeLayout)findViewById(R.id.adView);
+		
+		// Add the adView to it
+		layout.addView(adView);
+
+		// Initiate a generic request to load it with an ad
+		adView.loadAd(new AdRequest());
 	}
 	
 	private void formatMenuItem(final TextView tv, int text) {
@@ -512,6 +532,9 @@ public class MenuHome extends Activity {
 	@Override
 	protected void onDestroy() {
 		ToolsTracker.stopTracking();
+		if (adView != null) {
+			adView.destroy();
+		}
 		super.onDestroy();
 	}
 	
