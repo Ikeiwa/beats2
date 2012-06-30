@@ -32,7 +32,7 @@ public class GUIHandler { //TODO is there any reason this isn't abstract?
 	
 	public GUIHandler() {
 		fallpix_per_ms = Double.valueOf(
-				Tools.getSetting(R.string.speedMultiplier, R.string.speedMultiplierDefault)) / 5;
+				Tools.getSetting(R.string.speedMultiplier, R.string.speedMultiplierDefault)) / 3;
 		if (Tools.gameMode == Tools.STANDARD) fallpix_per_ms = -fallpix_per_ms; // scroll up
 		tapboxYOffset = Integer.valueOf(
 				Tools.getSetting(R.string.tapboxYOffset, R.string.tapboxYOffsetDefault));

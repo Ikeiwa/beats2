@@ -27,29 +27,12 @@ public class ToolsSampleInstaller implements Runnable {
 		this.extractingBar = null;
 	}
 	
-	private Handler extracthandler = new Handler() {
-		public void handleMessage(Message msg) {
-			try {
-				if (extractingBar != null) extractingBar.dismiss();
-			} catch (IllegalArgumentException e) {
-				ToolsTracker.error("ToolsSampleInstaller.handleMessage", e, path);
-				if (Tools.getBooleanSetting(R.string.debugLogCat, R.string.debugLogCatDefault)) {
-					Tools.toast(Tools.getString(R.string.Tools_window_error));
-				}
-			}
-			if (success) {
-				new ToolsUnzipper(a, path, true).unzip();
-			} else {
-				Tools.error(
-						errorMsg,
-						Tools.cancel_action
-						);
-			}
-		}
-	};
-	
+	Handler extracthandler;
 	public void run() {
 		try {
+			extractingBar.setProgress(0);
+			extractingBar.setMax((int)a.getResources().openRawResourceFd(raw).getLength());
+			
 			InputStream in = a.getResources().openRawResource(raw);
 			FileOutputStream out = new FileOutputStream(path);
 			int count;
@@ -76,21 +59,6 @@ public class ToolsSampleInstaller implements Runnable {
 		}		
 	}
 	
-	private void extractSampleZip() {
-		extractingBar =	new ProgressDialog(a);
-		extractingBar.setCancelable(false);
-		extractingBar.setMessage(
-				Tools.getString(message)
-				);
-		extractingBar.setProgressStyle(ProgressDialog.STYLE_HORIZONTAL);
-		extractingBar.setProgress(0);
-		extractingBar.setOwnerActivity(a);
-		extractingBar.show();
-		extractingBar.setMax((int)a.getResources().openRawResourceFd(raw).getLength());
-
-		new Thread(this).start();
-	}
-	
 	public void extract() {
 		/*
 		DialogInterface.OnClickListener extract_action = new DialogInterface.OnClickListener() {
@@ -115,7 +83,37 @@ public class ToolsSampleInstaller implements Runnable {
 				-1
 				);
 		*/
+		extractingBar =	new ProgressDialog(a);
+		extractingBar.setCancelable(false);
+		extractingBar.setMessage(
+				Tools.getString(message)
+				);
+		extractingBar.setProgressStyle(ProgressDialog.STYLE_HORIZONTAL);
+		extractingBar.setOwnerActivity(a);
+		extractingBar.show();
+		
+		extracthandler = new Handler() {
+			public void handleMessage(Message msg) {
+				try {
+					if (extractingBar != null) extractingBar.dismiss();
+				} catch (IllegalArgumentException e) {
+					ToolsTracker.error("ToolsSampleInstaller.handleMessage", e, path);
+					if (Tools.getBooleanSetting(R.string.debugLogCat, R.string.debugLogCatDefault)) {
+						Tools.toast(Tools.getString(R.string.Tools_window_error));
+					}
+				}
+				if (success) {
+					new ToolsUnzipper(a, path, true).unzip();
+				} else {
+					Tools.error(
+							errorMsg,
+							Tools.cancel_action
+							);
+				}
+			}
+		};
+		
 		// Just extract anyway without prompt
-		extractSampleZip();
+		new Thread(this).start();
 	}
 }

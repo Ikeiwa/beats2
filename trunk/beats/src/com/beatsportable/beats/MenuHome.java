@@ -17,8 +17,6 @@ import android.view.View.OnClickListener;
 import android.view.View.OnTouchListener;
 import android.widget.*;
 
-import com.google.ads.*;
-
 	
 public class MenuHome extends Activity {
 	
@@ -33,8 +31,8 @@ public class MenuHome extends Activity {
 	private String[] largeTextCountries= {"ko", "zh", "ru", "ja"};
 	private static Locale defaultLocale;
 	private Vibrator v;
-	private AdView adView;
 	
+	/*
 	// Startup Warnings
 	private void versionCheck() {
 		if (Build.VERSION.SDK_INT < Build.VERSION_CODES.ECLAIR_MR1 &&
@@ -46,10 +44,13 @@ public class MenuHome extends Activity {
 					);
 		}
 	}
+	*/
 	
+	/*
 	private void updateCheck() {
 		new ToolsUpdateTask().execute(Tools.getString(R.string.Url_version));
 	}
+	*/
 	
 	/*
 	private void showBackgroundData() {
@@ -185,6 +186,7 @@ public class MenuHome extends Activity {
 					);
 		}
 		
+		/*
 		if (!new File(Tools.getNoteSkinsDir()).canRead()) {
 			Tools.installGraphics(this);
 		}
@@ -202,6 +204,7 @@ public class MenuHome extends Activity {
 			// Always make folders
 			if (Tools.isMediaMounted()) Tools.makeBeatsDir();
 		}
+		*/
 	}
 	
 	// Activity Result
@@ -320,33 +323,17 @@ public class MenuHome extends Activity {
 		if (Tools.getBooleanSetting(R.string.resetSettings, R.string.resetSettingsDefault)) {
 			Tools.resetSettings();
 		}
-		/*
+		Tools.setScreenDimensions();
+		setupLayout();
+		
+		//updateCheck();
+		//versionCheck();
+		showNotes();
+		
 		if (Tools.getBooleanSetting(R.string.additionalVibrations, R.string.additionalVibrationsDefault)) {
 			v = ((Vibrator) getSystemService(Context.VIBRATOR_SERVICE));
 			v.vibrate(300); // ready to rumble!
 		}
-		*/
-		Tools.setScreenDimensions();
-		updateCheck();
-		setupLayout();
-		versionCheck();
-		showNotes();
-		loadAds();
-	}
-	
-	private void loadAds() {
-		// Create the adView
-		adView = new AdView(this, AdSize.BANNER, Tools.getString(R.string.AdMob_key));
-		
-		// Lookup your LinearLayout assuming it’s been given
-		// the attribute android:id="@+id/mainLayout"
-		RelativeLayout layout = (RelativeLayout)findViewById(R.id.adView);
-		
-		// Add the adView to it
-		layout.addView(adView);
-
-		// Initiate a generic request to load it with an ad
-		adView.loadAd(new AdRequest());
 	}
 	
 	private void formatMenuItem(final TextView tv, int text) {
@@ -396,7 +383,6 @@ public class MenuHome extends Activity {
 		setVolumeControlStream(AudioManager.STREAM_MUSIC); // To control media volume at all times
 		
 		backgroundPath = ""; // Force background reload
-		updateLayout();
 		
 		// Difficulty button
 		TextView difficulty = (TextView) findViewById(R.id.difficulty);
@@ -526,15 +512,12 @@ public class MenuHome extends Activity {
 	@Override
 	public void onConfigurationChanged(Configuration newConfig) {
 		super.onConfigurationChanged(newConfig);
-		setupLayout();
+		updateLayout();
 	}
 	
 	@Override
 	protected void onDestroy() {
 		ToolsTracker.stopTracking();
-		if (adView != null) {
-			adView.destroy();
-		}
 		super.onDestroy();
 	}
 	

@@ -99,7 +99,7 @@
 	<string name="vibrateHold">"vibrateHold"</string>
 	<string name="vibrateHoldDefault">"1"</string>
 	<string name="vibrateMiss">"vibrateMiss"</string>
-	<string name="vibrateMissDefault">"2"</string>
+	<string name="vibrateMissDefault">"1"</string>
 	<string name="vibrateTouchSense">"vibrateTouchSense"</string>
 	<string name="vibrateTouchSenseDefault">"1"</string>
 	<string name="manualOffset">"manualOffset"</string>
