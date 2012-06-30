@@ -4,7 +4,7 @@ import java.util.HashMap;
 
 import android.util.Log;
 
-import com.Localytics.android.LocalyticsSession;
+import com.localytics.android.*;
 
 public class ToolsTracker {
 	private static String appVersion = "";

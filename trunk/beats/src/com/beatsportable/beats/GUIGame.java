@@ -3,6 +3,7 @@ package com.beatsportable.beats;
 import java.io.File;
 import java.util.HashMap;
 
+import android.annotation.SuppressLint;
 import android.app.Activity;
 import android.content.Context;
 import android.content.res.Configuration;
@@ -543,7 +544,7 @@ public class GUIGame extends Activity {
 			ToolsTracker.data("Game started", attributes);
 		}
 		
-		@Override
+		@SuppressLint("DrawAllocation") @Override
 		protected void onDraw(Canvas canvas) {
 
 			// FPS
@@ -774,20 +775,17 @@ public class GUIGame extends Activity {
 			}
 		}
 		*/
-		@Override
 		public void surfaceChanged(SurfaceHolder holder, int format, int width, int height) {
 			// TODO Auto-generated method stub
 			
 		}
 
-		@Override
 		public void surfaceCreated(SurfaceHolder holder) {
 			_thread.setRunning(true);
 			_thread.start();
 			
 		}
 
-		@Override
 		public void surfaceDestroyed(SurfaceHolder holder) {
 			boolean retry = true;
 			_thread.setRunning(false);

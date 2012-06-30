@@ -1,11 +1,10 @@
 package com.beatsportable.beats;
-
 import java.util.Random;
 
 @Deprecated
 public class ToolsRandomizer {
 	
-	private static final float TwoPi = (float)(2*Math.PI);
+	//private static final float TwoPi = (float)(2*Math.PI);
 
 	//TODO this stuff shouldn't be static, since it's attached to a particular song.
 	// Instead, create a new ToolsRandomizer for each song.
@@ -53,6 +52,7 @@ public class ToolsRandomizer {
 		return randPitch;
 	}
 	
+	/*
 	private static float[] cosRange(double mintheta, double maxtheta) {
 		// returns [min(cos(x)) with x from mintheta to maxtheta, max(cos(x)) ...]
 		double value1 = Math.cos(mintheta);
@@ -79,24 +79,27 @@ public class ToolsRandomizer {
 		}
 		return new float[] {range_min, range_max};
 	}
+	*/
+	/*
 	private static float[] sinRange(double mintheta, double maxtheta) {
 		return cosRange(Math.PI/2 - mintheta, Math.PI/2 - maxtheta);
 	}
+	*/
 	
 	// For osu! Mod	
 	private static int _nCBm_last_lineIndex = -1;
 	private static int _nCBm_last_lineCount = -1;
 	
 	
+	/* TODO this function should be called once per measure and return
+	 * positions for all notes in the measure, instead of once per note.
+	 * The following is a hack. */
+	/*
 	private static double _nCBmC_radius,
 		_nCBmC_centerx, _nCBmC_centery,
 		_nCBmC_startangle, _nCBmC_anglelen;
 	private static float[] nextCoordsBeatmapCircle(int lineIndex, int lineCount) {
-		/* TODO this function should be called once per measure and return
-		 * positions for all notes in the measure, instead of once per note.
-		 * The following is a hack. */
-		boolean newMeasure = (lineCount != _nCBm_last_lineCount) ||
-			(lineIndex <= _nCBm_last_lineIndex);
+		boolean newMeasure = (lineCount != _nCBm_last_lineCount) || (lineIndex <= _nCBm_last_lineIndex);
 		_nCBm_last_lineIndex = lineIndex;
 		_nCBm_last_lineCount = lineCount;
 		
@@ -131,6 +134,7 @@ public class ToolsRandomizer {
 				(float)((_nCBmC_centery + _nCBmC_radius*Math.sin(angle))/tapspace_h),
 		};
 	}
+	*/
 	
 	private static float[][] _nCBmBz_control = null;
 	private static float[] nextCoordsBeatmapBezier(int lineIndex, int lineCount, int controlPoints) {

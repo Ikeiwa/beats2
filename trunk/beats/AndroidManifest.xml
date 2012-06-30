@@ -2,11 +2,11 @@
 <manifest
 	xmlns:android="http://schemas.android.com/apk/res/android"
 	package="com.beatsportable.beats"
-	android:versionCode="16"
+	android:versionCode="17"
 	android:versionName="@string/App_version"
-	android:installLocation="preferExternal">
+	android:installLocation="auto">
 	<uses-sdk
-		android:minSdkVersion="3"
+		android:minSdkVersion="4"
 		android:targetSdkVersion="10"
 	/>
 	<uses-permission android:name="android.permission.INTERNET"/> <!-- AdMob Localytics -->

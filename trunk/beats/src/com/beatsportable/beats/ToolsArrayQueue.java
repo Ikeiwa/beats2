@@ -1,7 +1,6 @@
 package com.beatsportable.beats;
 
 import java.util.AbstractQueue;
-import java.util.Arrays;
 import java.util.Iterator;
 import java.util.LinkedList;
 import java.util.NoSuchElementException;
@@ -122,10 +121,12 @@ public class ToolsArrayQueue<T> extends AbstractQueue<T> {
 		return (idx >= elements.length) ? (idx - elements.length) : idx;
 	}
 	
+	/*
 	private int dec(int idx) {
 		idx--;
 		return (idx < 0) ? (idx + elements.length) : idx;
 	}
+	*/
 	
 	@SuppressWarnings("unchecked")
 	private void setCapacity(int cap) {
@@ -178,6 +179,7 @@ public class ToolsArrayQueue<T> extends AbstractQueue<T> {
 		return true;
 	}
 	
+	/*
 	private static final void fill(Object[] a, int fromIndex, int toIndex, Object val) {
 		if (fromIndex <= toIndex) {
 			Arrays.fill(a, fromIndex, toIndex, val);
@@ -187,6 +189,7 @@ public class ToolsArrayQueue<T> extends AbstractQueue<T> {
 			Arrays.fill(a, 0, toIndex, val);
 		}
 	}
+	*/
 	
 	/** If src is a wraparound array of capacity srcCap
 	 *     with elements at [srcStart, srcEnd) mod srcCap

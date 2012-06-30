@@ -144,22 +144,25 @@ public class GUIFallingObjectSpace implements Iterable<GUIFallingObject> {
 				
 				GUIFallingObject o = null;
 				switch(currentNote.noteType) {
-				case TAP_NOTE:
-					o = new GUIFallingArrow(currentNote); 
-					break;
-				case HOLD_START:
-					if (!ALLOW_HOLDS) break;
-					GUIFallingHold h = new GUIFallingHold(currentNote); 
-					holds_to_create[pitch] = h;
-					o = h;
-					score.holdCount++;
-					break;
-				case HOLD_END:
-					if (!ALLOW_HOLDS) break;
-					if (holds_to_create[pitch] != null) {
-						holds_to_create[pitch].end_time = currentNote.time;
-						holds_to_create[pitch] = null;
-					}
+					case TAP_NOTE:
+						o = new GUIFallingArrow(currentNote); 
+						break;
+					case HOLD_START:
+						if (!ALLOW_HOLDS) break;
+						GUIFallingHold h = new GUIFallingHold(currentNote); 
+						holds_to_create[pitch] = h;
+						o = h;
+						score.holdCount++;
+						break;
+					case HOLD_END:
+						if (!ALLOW_HOLDS) break;
+						if (holds_to_create[pitch] != null) {
+							holds_to_create[pitch].end_time = currentNote.time;
+							holds_to_create[pitch] = null;
+						}
+						break;
+					default:
+						break;
 				}
 				
 				if (o != null) {
