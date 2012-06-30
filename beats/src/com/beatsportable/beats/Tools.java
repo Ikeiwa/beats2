@@ -623,6 +623,7 @@ public class Tools {
 		}
 	}
 	
+	/*
 	public static void installGraphics(Activity a) {
 		String beatsPath = getBeatsDir();
 		if (beatsPath != null) {
@@ -635,6 +636,7 @@ public class Tools {
 					).extract();
 		}
 	}
+	*/
 	
 	// Copied from http://www.rgagnon.com/javadetails/java-0416.html
 	private static byte[] createChecksum(String filename) throws Exception {

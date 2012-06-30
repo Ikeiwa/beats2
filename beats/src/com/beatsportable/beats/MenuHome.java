@@ -1,6 +1,5 @@
 package com.beatsportable.beats;
 
-import java.io.File;
 import java.util.*;
 
 import android.app.*;
@@ -32,7 +31,6 @@ public class MenuHome extends Activity {
 	private static Locale defaultLocale;
 	private Vibrator v;
 	
-	/*
 	// Startup Warnings
 	private void versionCheck() {
 		if (Build.VERSION.SDK_INT < Build.VERSION_CODES.ECLAIR_MR1 &&
@@ -44,13 +42,10 @@ public class MenuHome extends Activity {
 					);
 		}
 	}
-	*/
 	
-	/*
 	private void updateCheck() {
 		new ToolsUpdateTask().execute(Tools.getString(R.string.Url_version));
 	}
-	*/
 	
 	/*
 	private void showBackgroundData() {
@@ -190,6 +185,7 @@ public class MenuHome extends Activity {
 		if (!new File(Tools.getNoteSkinsDir()).canRead()) {
 			Tools.installGraphics(this);
 		}
+		*/
 		
 		if (Tools.getBooleanSetting(R.string.installSamples, R.string.installSamplesDefault) ||
 			!Tools.getBooleanSetting(R.string.ignoreNewUserNotes, R.string.ignoreNewUserNotesDefault)) {
@@ -204,7 +200,6 @@ public class MenuHome extends Activity {
 			// Always make folders
 			if (Tools.isMediaMounted()) Tools.makeBeatsDir();
 		}
-		*/
 	}
 	
 	// Activity Result
@@ -326,8 +321,8 @@ public class MenuHome extends Activity {
 		Tools.setScreenDimensions();
 		setupLayout();
 		
-		//updateCheck();
-		//versionCheck();
+		updateCheck();
+		versionCheck();
 		showNotes();
 		
 		if (Tools.getBooleanSetting(R.string.additionalVibrations, R.string.additionalVibrationsDefault)) {
@@ -383,6 +378,7 @@ public class MenuHome extends Activity {
 		setVolumeControlStream(AudioManager.STREAM_MUSIC); // To control media volume at all times
 		
 		backgroundPath = ""; // Force background reload
+		updateLayout();
 		
 		// Difficulty button
 		TextView difficulty = (TextView) findViewById(R.id.difficulty);
