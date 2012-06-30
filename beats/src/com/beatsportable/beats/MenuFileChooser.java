@@ -209,6 +209,7 @@ public class MenuFileChooser extends ListActivity {
 				msg.append(s);
 				msg.append("<br/>");
 			}
+			r.close();
 			msg.append("</small>");
 			Tools.note(i.getName(), R.drawable.icon_small, Html.fromHtml(msg.toString()),
 					Tools.getString(R.string.Button_close), null, null, null, -1);

@@ -68,7 +68,6 @@ public class Scoreboard extends SQLiteOpenHelper implements Runnable {
 		Tools.c.deleteDatabase(DATABASE_NAME);
 	}
 
-	@Override
 	public void run() {
 		try {
 			Thread.sleep(500);

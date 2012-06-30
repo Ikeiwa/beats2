@@ -111,10 +111,10 @@ public class Tools {
 			screen_h -= statusBarHeight;
 		}
 		int screen_size = c.getResources().getConfiguration().screenLayout & Configuration.SCREENLAYOUT_SIZE_MASK;
-		if (screen_size == Configuration.SCREENLAYOUT_SIZE_XLARGE) {
+		if (screen_size == 4) { //Configuration.SCREENLAYOUT_SIZE_XLARGE) {
 			tablet = true;
-			if (Integer.parseInt(Build.VERSION.SDK) >= 11) {//Build.VERSION_CODES.HONEYCOMB) {
-				screen_h -= 48; // TODO - hardcoded menu height
+			if (Integer.parseInt(Build.VERSION.SDK) == 11) {//Build.VERSION_CODES.HONEYCOMB) {
+				screen_h -= 48; // TODO - hardcoded menu height for Honeycomb bug
 			}
 		}
 		if (tablet) {

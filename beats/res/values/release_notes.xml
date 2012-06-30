@@ -2,7 +2,7 @@
 <resources>
 
 <!-- Placed here for easy updating -->
-<string name="App_version">"1.7b FINAL"</string>
+<string name="App_version">"1.7.1b FINAL"</string>
 
 <!-- MenuHome -->
 <string name="MenuHome_new_user_notes">
@@ -41,6 +41,10 @@ This beta release is for use as is, no warrantees expressed or implied. We are n
 See http://beatsportable.com/changelog/ for the full log.
 
 This is the FINAL version of Beats. Future development will continue with the open source Beats2 project. See http://code.google.com/p/beats2/ for more details.
+
+Beats 1.7.1b FINAL - Changeset [xxx]
+- updated AdMob, v6.0.1
+- updated Immersion MOTIV Haptic Effects, v3.5.30
 
 Beats 1.7b FINAL - Changeset [575]
 - tablet support!!!
