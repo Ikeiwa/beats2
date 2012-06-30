@@ -113,7 +113,7 @@ public class Tools {
 		int screen_size = c.getResources().getConfiguration().screenLayout & Configuration.SCREENLAYOUT_SIZE_MASK;
 		if (screen_size == 4) { //Configuration.SCREENLAYOUT_SIZE_XLARGE) {
 			tablet = true;
-			if (Integer.parseInt(Build.VERSION.SDK) == 11) {//Build.VERSION_CODES.HONEYCOMB) {
+			if (Build.VERSION.SDK_INT == Build.VERSION_CODES.HONEYCOMB) {
 				screen_h -= 48; // TODO - hardcoded menu height for Honeycomb bug
 			}
 		}

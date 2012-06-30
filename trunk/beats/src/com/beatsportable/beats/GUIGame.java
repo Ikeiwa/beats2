@@ -209,7 +209,7 @@ public class GUIGame extends Activity {
 		
 		// 1.5 and 1.6 have incomplete multitouch support
 		// See http://developer.android.com/reference/android/os/Build.VERSION_CODES.html
-		if (Integer.parseInt(Build.VERSION.SDK) < Build.VERSION_CODES.ECLAIR) {
+		if (Build.VERSION.SDK_INT < Build.VERSION_CODES.ECLAIR) {
 			listeners = new GUIListenersNoMulti(h);
 		} else {
 			listeners = new GUIListenersMulti(h);
