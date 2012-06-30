@@ -83,14 +83,14 @@ public class GUIVibrator {
 					break;
 				case 1:
 					if (v != null) {
-						v.vibrate(50);
+						v.vibrate(15);
 					} else if (vm != null) {
 						vm.play(Launcher.SHARP_CLICK_33);
 					}
 					break;
 				case 2:
 					if (v != null) {
-						v.vibrate(100);
+						v.vibrate(30);
 					} else if (vm != null) {
 						vm.play(Launcher.SHARP_CLICK_66);
 					}
@@ -140,14 +140,14 @@ public class GUIVibrator {
 					break;
 				case 1:
 					if (v != null) {
-						v.vibrate(75);
+						v.vibrate(25);
 					} else if (vm != null) {
 						vm.play(Launcher.BUMP_66);
 					}
 					break;
 				case 2:
 					if (v != null) {
-						v.vibrate(150);
+						v.vibrate(50);
 					} else if (vm != null) {
 						vm.play(Launcher.BUMP_100);
 					}

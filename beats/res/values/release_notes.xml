@@ -36,33 +36,19 @@ Enjoy the beta release!
 "
 </string>
 <string name="MenuHome_release_notes">
-"Disclaimer:
-This beta release is for use as is, no warrantees expressed or implied. We are not responsible for any damage that may result from usage of this app. Information may be collected via Localytics for feature testing and feedback purposes.
-See http://beatsportable.com/changelog/ for the full log.
-
-This is the FINAL version of Beats. Future development will continue with the open source Beats2 project. See http://code.google.com/p/beats2/ for more details.
+"This is the FINAL version of Beats. Future development will continue with the open source \"Beats 2\" project. See http://code.google.com/p/beats2/ for more details.
 
 Beats 1.7.1b FINAL - Changeset [xxx]
+- Android 4.x ICS support (tested on CyanogenMod 9 nightly)
+- all speed multipliers effectiveness DOUBLED, please adjust your settings!
 - fixed Graphics zip delete error
 - updated AdMob to v6.0.1
 - updated Immersion MOTIV Haptic Effects to v3.5.30
 
-Beats 1.7b FINAL - Changeset [575]
-- tablet support!!!
-- improved screen updating and scaling
-- modified sliders and guidelines for osu! Mod
-- smarter osu difficulty selection
-- custom loadable graphics
-- new SM-based default noteskin
-- updated with Immersion MOTIV Haptic Effects, Version 3.4.73
-- more touch-friendly main menu
-- rearranged settings menus a bit
-- translation update
-- removed MobFox
-
-Enjoy the beta release! Make sure to check out the \"ToDo\" and \"Changelog\" pages on the BeatsPortable website for the latest updates. If you encounter any bugs or have suggestions, please post them on the BeatsPortable forums.
-
 ~Keripo
+
+Disclaimer:
+This beta release is for use as is, no warrantees expressed or implied. We are not responsible for any damage that may result from usage of this app. Information may be collected via Localytics for feature testing and feedback purposes.
 "
 </string>
 
