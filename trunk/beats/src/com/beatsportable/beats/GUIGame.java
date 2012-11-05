@@ -296,10 +296,12 @@ public class GUIGame extends Activity {
 				try {
 					c = _surfaceHolder.lockCanvas(null);
 					synchronized (_surfaceHolder) {
-						if (!_paused) {
-							_view.update();
+						if (_view != null && c != null) {
+							if (!_paused) {
+								_view.update();
+							}
+							_view.onDraw(c);
 						}
-						_view.onDraw(c);
 					}
 				} finally {
 					// do this in a finally so that if an exception is thrown

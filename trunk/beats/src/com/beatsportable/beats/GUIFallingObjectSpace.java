@@ -1,7 +1,6 @@
 package com.beatsportable.beats;
 
 import java.util.Iterator;
-import android.util.Log;
 
 public class GUIFallingObjectSpace implements Iterable<GUIFallingObject> {
 	/* A place to put timed falling objects into columns.*/
@@ -212,7 +211,7 @@ public class GUIFallingObjectSpace implements Iterable<GUIFallingObject> {
 		/* Returns a array of size at least cap. The array returned may be arr.
 		 * There is no guarantee as to what elements are in the array. */
 		if ((arr == null) || (arr.length < cap)) {
-			Log.i("FallingObjectSpace", "new size: " + (cap*2));
+			//Log.i("FallingObjectSpace", "new size: " + (cap*2));
 			return new GUIFallingObject[cap*2];
 		} else {
 			return arr;

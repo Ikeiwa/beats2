@@ -53,7 +53,7 @@ typedef VibeInt32                                       VibeStatus;
 
         See \ref versioning for details about \api version numbers.
 */
-#define   CUHL_CURRENT_VERSION_NUMBER  0x305001E
+#define   CUHL_CURRENT_VERSION_NUMBER  0x3050327
 
 
 /** \defgroup devcaps Device Capabilities */

@@ -7,10 +7,10 @@
   <string name="gameplayCategoryTitle">ゲームプレイ</string>
   <string name="notesCategoryTitle">ノート</string>
   <string name="displaySettingsCategoryTitle">画面の設定</string>
-  <string name="gameScreenTitle">"Game Screen"</string>
+  <string name="gameScreenTitle">ゲーム画面</string>
   <string name="gameScreenDesc">"Screen during gameplay"</string>
-  <string name="interfaceCategoryTitle">"Game Interface"</string>
-  <string name="backgroundCategoryTitle">"Game Background"</string>
+  <string name="interfaceCategoryTitle">ゲーム界面</string>
+  <string name="backgroundCategoryTitle">ゲームの背景</string>
   <string name="tapSettingsCategoryTitle">タップの設定</string>
   <string name="vibrateScreenTitle">バイブレーション</string>
   <string name="vibrateScreenDesc">"振動/触覚フィードバックの設定"</string>
@@ -64,7 +64,7 @@
   <string name="autoPlayDesc">楽曲のパターン学習機能を自動再生に利用（または笑いのためにｗ）</string>
   <string name="fullscreenTitle">"フルスクリーン"</string>
   <string name="fullscreenDesc">ステータスとタイトル バーを隠す</string>
-  <string name="backgroundShowTitle">"Show Background"</string>
+  <string name="backgroundShowTitle">背景を表示する</string>
   <string name="backgroundShowDesc">"Draw the background image"</string>
   <string name="backgroundBrightnessTitle">"背景の明るさ"</string>
   <string name="backgroundBrightnessDesc">"背景画像の明るさ"</string>

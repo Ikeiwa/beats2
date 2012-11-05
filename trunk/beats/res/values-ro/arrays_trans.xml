@@ -24,9 +24,9 @@
     <item>Mod osu! aleator</item>
   </string-array>
   <string-array name="noteskin">
-    <item>Default</item>
+    <item>Implicit</item>
     <item>Original</item>
-    <item>Custom</item>
+    <item>Personalizat</item>
   </string-array>
   <string-array name="backgroundImage">
     <item>Albastru</item>

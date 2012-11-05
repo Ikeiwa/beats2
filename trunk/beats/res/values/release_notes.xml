@@ -38,12 +38,13 @@ Enjoy the beta release!
 <string name="MenuHome_release_notes">
 "This is the FINAL version of Beats. Future development will continue with the open source \"Beats 2\" project. See http://code.google.com/p/beats2/ for more details.
 
-Beats 1.7.1b FINAL - Changeset [xxx]
-- Android 4.x ICS support (tested on CyanogenMod 9 nightly)
+Beats 1.7.1b FINAL - Changeset [r16]
+- Android 4.x ICS support (tested on CyanogenMod 10 nightly)
 - all speed multipliers effectiveness DOUBLED, please adjust your settings!
 - fixed Graphics zip delete error
-- updated AdMob to v6.0.1
-- updated Immersion MOTIV Haptic Effects to v3.5.30
+- updated AdMob to v6.2.1
+- updated Immersion MOTIV Haptic Effects to v3.5.39.3
+- updated all translation
 
 ~Keripo
 

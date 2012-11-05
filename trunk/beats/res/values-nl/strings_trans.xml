@@ -45,7 +45,7 @@
   <string name="MenuHome_release_notes_title">"Beats Release Notes"</string>
   <string name="MenuSettings_title">"Beats - Instellingen"</string>
   <string name="DataParser_unsupported">"Stepfile niet ondersteund: er Beats ondersteunt nu alleen .sm, .dwi en .osu files."</string>
-  <string name="MenuStartGame_loading_title">"Beats - Laden: "</string>
+  <string name="MenuStartGame_loading_title">"Laden: "</string>
   <string name="MenuStartGame_loading_progress_bar">"Stepfile laden:\n"</string>
   <string name="MenuStartGame_fail_parse">"Fout: Kan de stepfile niet inlezen:\n"</string>
   <string name="MenuStartGame_notes_error">"Geen ondersteunde noten data gevonden."</string>
