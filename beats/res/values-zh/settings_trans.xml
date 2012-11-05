@@ -70,8 +70,8 @@
   <string name="backgroundBrightnessDesc">"背景图片亮度"</string>
   <string name="backgroundSongTitle">加载歌曲背景图</string>
   <string name="backgroundSongDesc">加载特定歌曲背景图</string>
-  <string name="noteskinTitle">"Note Skin"</string>
-  <string name="noteskinDesc">"Note graphics to load"</string>
+  <string name="noteskinTitle">音符皮肤</string>
+  <string name="noteskinDesc">加载音符图像</string>
   <string name="backgroundImageTitle">"菜单背景"</string>
   <string name="backgroundImageDesc">"主菜单背景图片，也是歌曲无配图时默认背景图"</string>
   <string name="orientationTitle">"屏幕方向"</string>

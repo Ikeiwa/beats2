@@ -97,7 +97,7 @@
   <string name="ToolsUnzipperActivity_install">"安裝: "</string>
   <string name="ToolsUnzipperActivity_unsupported">"錯誤: 不支持的安裝源。安裝器僅支持.zip和.smzip格式的文件"</string>
   <string name="ToolsSampleInstaller_installing">"正在解壓示例歌曲包，請稍候.."</string>
-  <string name="ToolsSampleInstaller_graphics">"Extracting default graphics, please wait..."</string>
+  <string name="ToolsSampleInstaller_graphics">提取默認圖像，請稍候...</string>
   <string name="MenuFilechooser_list_error">"錯誤: 無法在目錄中列出文件:\n"</string>
   <string name="MenuFilechooser_url_error">"錯誤：無效的Internet快捷方式，無法識別網址。"</string>
   <string name="MenuFilechooser_up_dir">".. [返回上級目錄]"</string>

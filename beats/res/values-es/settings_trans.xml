@@ -70,8 +70,8 @@
   <string name="backgroundBrightnessDesc">"Ajusta el brillo de la imagen de fondo"</string>
   <string name="backgroundSongTitle">Cargar cancion de fondo</string>
   <string name="backgroundSongDesc">Cargar fondo específico de canción</string>
-  <string name="noteskinTitle">"Note Skin"</string>
-  <string name="noteskinDesc">"Note graphics to load"</string>
+  <string name="noteskinTitle">"Apariencia de la nota"</string>
+  <string name="noteskinDesc">"Nota gráfica para cargar"</string>
   <string name="backgroundImageTitle">"Fondo del menú"</string>
   <string name="backgroundImageDesc">"Imagen de fondo para el menú y para las canciones que no contengan uno"</string>
   <string name="orientationTitle">"Orientación de pantalla"</string>
@@ -117,7 +117,7 @@
   <string name="autoStartTitle">"Inicio automático"</string>
   <string name="autoStartDesc">"Inicia la canción automáticamente después de seleccionarla"</string>
   <string name="useShortDirNamesTitle">"Acortar carpetas"</string>
-  <string name="useShortDirNamesDesc">"Remove (...) and [...] tags from folder entries in \'SELECT MUSIC\'"</string>
+  <string name="useShortDirNamesDesc">"Elimina los tags (...) y [...] de las entradas en la carpeta \'ELEGIR MÚSICA\'"</string>
   <string name="stepfileFolderCheckTitle">"Chequeo de carpetas"</string>
   <string name="stepfileFolderCheckDesc">"Desactive esto para acceder directamente a las carpetas con canciones"</string>
   <string name="betaNotesTitle">"Notas (Beta)"</string>

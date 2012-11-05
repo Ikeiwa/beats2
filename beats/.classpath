@@ -2,7 +2,6 @@
 <classpath>
 	<classpathentry kind="con" path="com.android.ide.eclipse.adt.ANDROID_FRAMEWORK"/>
 	<classpathentry kind="con" path="com.android.ide.eclipse.adt.LIBRARIES"/>
-	<classpathentry kind="lib" path="libs/GoogleAdMobAdsSdk-6.0.1.jar"/>
 	<classpathentry kind="lib" path="libs/UHL.jar">
 		<attributes>
 			<attribute name="javadoc_location" value="jar:platform:/resource/beats/libs/UHLdoc.zip!/"/>
@@ -10,5 +9,6 @@
 	</classpathentry>
 	<classpathentry kind="src" path="src"/>
 	<classpathentry kind="src" path="gen"/>
+	<classpathentry kind="lib" path="libs/GoogleAdMobAdsSdk-6.2.1.jar"/>
 	<classpathentry kind="output" path="bin/classes"/>
 </classpath>

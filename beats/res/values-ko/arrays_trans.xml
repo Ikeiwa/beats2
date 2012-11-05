@@ -24,9 +24,9 @@
     <item>오스! 모드 랜드</item>
   </string-array>
   <string-array name="noteskin">
-    <item>Default</item>
-    <item>Original</item>
-    <item>Custom</item>
+    <item>기본</item>
+    <item>오리지널</item>
+    <item>사용자 정의</item>
   </string-array>
   <string-array name="backgroundImage">
     <item>파랑색</item>

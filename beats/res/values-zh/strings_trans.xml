@@ -75,7 +75,7 @@
   <string name="Tools_unable_delete_file">"错误: 无法删除文件:\n"</string>
   <string name="Tools_unable_create_dir">"错误: 无法创建目录:\n"</string>
   <string name="Tools_unable_create_file">"错误: 无法创建文件:\n"</string>
-  <string name="Tools_window_error">"窗口切换错误-我还没搞定这个问题;(~~~~ （请给我发电子邮件说明详细信息）"</string>
+  <string name="Tools_window_error">"窗口切换错误-我还没搞定这个问题orz~~~~ （请给我发电子邮件说明详细信息）"</string>
   <string name="Tools_do_not_show_again">"不要再显示此"</string>
   <string name="Tools_screenshot_saved">截图保存在：</string>
   <string name="ToolsUpdateTask_update_ask">"发现新版本！\n\n版本名称: %1$s\n版本号: %2$d\n\n是否下载新版本？"</string>
@@ -97,7 +97,7 @@
   <string name="ToolsUnzipperActivity_install">"安装: "</string>
   <string name="ToolsUnzipperActivity_unsupported">"错误: 不支持的安装源。安装器仅支持.zip和.smzip格式的文件"</string>
   <string name="ToolsSampleInstaller_installing">"正在解压示例歌曲包，请稍候.."</string>
-  <string name="ToolsSampleInstaller_graphics">"Extracting default graphics, please wait..."</string>
+  <string name="ToolsSampleInstaller_graphics">提取默认图像，请稍候...</string>
   <string name="MenuFilechooser_list_error">"错误: 无法在目录中列出文件:\n"</string>
   <string name="MenuFilechooser_url_error">"错误：无效的Internet快捷方式，无法识别网址。"</string>
   <string name="MenuFilechooser_up_dir">".. [返回上级目录]"</string>

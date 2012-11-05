@@ -24,9 +24,9 @@
     <item>osu!随机模式</item>
   </string-array>
   <string-array name="noteskin">
-    <item>Default</item>
-    <item>Original</item>
-    <item>Custom</item>
+    <item>默认</item>
+    <item>初始值</item>
+    <item>自定义</item>
   </string-array>
   <string-array name="backgroundImage">
     <item>蓝</item>
