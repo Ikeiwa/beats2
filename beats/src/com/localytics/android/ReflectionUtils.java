@@ -1,3 +1,11 @@
+// @formatter:off
+/*
+ * ReflectionUtils.java Copyright (C) 2012 Char Software Inc., DBA Localytics. This code is provided under the Localytics
+ * Modified BSD License. A copy of this license has been distributed in a file called LICENSE with this source code. Please visit
+ * www.localytics.com for more information.
+ */
+// @formatter:on
+
 package com.localytics.android;
 
 import java.lang.reflect.InvocationTargetException;
@@ -71,7 +79,6 @@ public final class ReflectionUtils
         return (T) helper(target, null, null, methodName, types, args);
     }
 
-    @SuppressWarnings("unchecked")
     private static <T> T helper(final Object target, final Class<?> classObject, final String className, final String methodName, final Class<?>[] argTypes, final Object[] args)
     {
         try

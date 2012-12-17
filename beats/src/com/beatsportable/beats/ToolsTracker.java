@@ -16,33 +16,41 @@ public class ToolsTracker {
 	
 	// Called by Tools.setContext
 	public static void setupTracker() {
-		if (localyticsSession == null) {
-			localyticsSession = new LocalyticsSession(Tools.c, Tools.res.getString(R.string.Localytics_key));
-			localyticsSession.open();
-			appVersion = Tools.res.getString(R.string.App_version);
-			appVersion += " ";
-			appVersion = sanitize(appVersion);
-		}
-		localyticsSession.upload();
+		try {
+			if (localyticsSession == null) {
+				localyticsSession = new LocalyticsSession(Tools.c, Tools.res.getString(R.string.Localytics_key));
+				localyticsSession.open();
+				appVersion = Tools.res.getString(R.string.App_version);
+				appVersion += " ";
+				appVersion = sanitize(appVersion);
+			}
+			localyticsSession.upload();
+		} catch (Exception e) {}
 	}
 	
 	// Called by MenuHome.onDestroy
 	public static void stopTracking() {
-		if (localyticsSession != null) {
-			localyticsSession.close();
-		}
+		try {
+			if (localyticsSession != null) {
+				localyticsSession.close();
+			}
+		} catch (Exception e) {}
 	}
 	
 	private static void track(String event) {
-		if (localyticsSession != null) {
-			localyticsSession.tagEvent(sanitize(event));
-		}
+		try {
+			if (localyticsSession != null) {
+				localyticsSession.tagEvent(sanitize(event));
+			}
+		} catch (Exception e) {}
 	}
 	
 	private static void trackAttributes(String event, HashMap<String,String> attributes) {
-		if (localyticsSession != null) {
-			localyticsSession.tagEvent(sanitize(event), attributes);
-		}
+		try {
+			if (localyticsSession != null) {
+				localyticsSession.tagEvent(sanitize(event), attributes);
+			}
+		} catch (Exception e) {}
 	}
 	
 	private static void trackAttribute(String event, String attribute, String value) {

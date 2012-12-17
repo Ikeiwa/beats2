@@ -1,6 +1,6 @@
 // @formatter:off
 /*
- * LocalyticsSession.java Copyright (C) 2011 Char Software Inc., DBA Localytics This code is provided under the Localytics
+ * LocalyticsSession.java Copyright (C) 2012 Char Software Inc., DBA Localytics. This code is provided under the Localytics
  * Modified BSD License. A copy of this license has been distributed in a file called LICENSE with this source code. Please visit
  * www.localytics.com for more information.
  */
@@ -27,7 +27,11 @@ import android.util.Log;
 
 import java.io.ByteArrayOutputStream;
 import java.io.IOException;
+import java.io.OutputStream;
 import java.io.UnsupportedEncodingException;
+import java.net.HttpURLConnection;
+import java.net.MalformedURLException;
+import java.net.URL;
 import java.util.Arrays;
 import java.util.HashMap;
 import java.util.HashSet;
@@ -75,35 +79,38 @@ import com.localytics.android.LocalyticsProvider.UploadBlobsDbColumns;
  * </ul>
  * Permissions recommended:
  * <ul>
- * <li>{@link permission#ACCESS_WIFI_STATE}</li> - Without this users connecting via Wi-Fi will show up as having a connection
- * type of 'unknown' on the webservice</li>
+ * <li>{@link permission#ACCESS_WIFI_STATE}</li> - Necessary to identify the type of network connection the user has. Without this
+ * permission, users connecting via Wi-Fi will be reported as having a connection type of 'unknown.'</li>
  * </ul>
- * <p>
- * This library will create a database called "com.android.localytics.sqlite" within the host application's
+ * <strong>Basic Usage</strong>
+ * <ol>
+ * <li>In {@code Activity#onCreate(Bundle)}, instantiate a {@link LocalyticsSession} object and assign it to a global variable in
+ * the Activity (e.g. {@code mLocalyticsSession}).</li>
+ * <li>In {@code Activity#onResume()}, call {@link #open()} or {@link #open(List)}.</li>
+ * <li>In {@code Activity#onResume()}, consider calling {@link #upload()}. Because the session was just opened, this upload will
+ * submit that open to the server and allow you to capture real-time usage of your application.</li>
+ * <li>In {@code Activity#onResume()}, consider calling {@link #tagScreen(String)} to note that the user entered the Activity.
+ * Assuming your application uses multiple Activities for navigation (rather than a single Activity with multiple Fragments}, this
+ * will capture the flow of users as they move from Activity to Activity. Don't worry about Activity re-entrance. Because
+ * {@code Activity#onResume()} can be called multiple times for different reasons, the Localytics library manages duplicate
+ * {@link #tagScreen(String)} calls for you.</li>
+ * <li>As the user interacts with your Activity, call {@link #tagEvent(String)}, {@link #tagEvent(String, Map)} or
+ * {@link #tagEvent(String, Map, List)} to collect usage data.</li>
+ * <li>In {@code Activity#onPause()}, call {@link #close()} or {@link #close(List)}.</li>
+ * </ol>
+ * <strong>Notes</strong>
+ * <ul>
+ * <li>Do not call any {@link LocalyticsSession} methods inside a loop. Instead, calls such as {@link #tagEvent(String)} should
+ * follow user actions. This limits the amount of data which is stored and uploaded.</li>
+ * <li>This library will create a database called "com.android.localytics.sqlite" within the host application's
  * {@link Context#getDatabasePath(String)} directory. For security, this file directory will be created
  * {@link Context#MODE_PRIVATE}. The host application must not modify this database file. If the host application implements a
  * backup/restore mechanism, such as {@code android.app.backup.BackupManager}, the host application should not worry about backing
- * up the data in the Localytics database.
- * </p>
- * <p>
- * This library is thread-safe but is not multi-process safe. Unless the application explicitly uses different process attributes
- * in the Android Manifest, this is not an issue.
- * </p>
- * <strong>Best Practices</strong>
- * <ul>
- * <li>Instantiate and open a {@link LocalyticsSession} object in {@code Activity#onCreate(Bundle)}. This will cause every new
- * Activity displayed to reconnect to any running session.</li>
- * <li>Consider also performing {@link #upload()} in {@code Activity#onCreate(Bundle)}. This makes it more likely for the upload
- * to complete before the Activity is finished, and also causes the upload to start before the user has a chance to begin any data
- * intensive actions of his own.</li>
- * <li>Close the session in {@code Activity#onPause()}. Based on the Activity lifecycle documentation, this is the last
- * terminating method which is guaranteed to be called. The final call to {@link #close()} is the only one considered, so don't
- * worry about Activity re-entrance.</li>
- * <li>Do not call any {@link LocalyticsSession} methods inside a loop. Instead, calls such as {@link #tagEvent(String)} should
- * follow user actions. This limits the amount of data which is stored and uploaded.</li>
+ * up the data in the Localytics database.</li>
+ * <li>This library is thread-safe but is not multi-process safe. Unless the application explicitly uses different process
+ * attributes in the Android Manifest, this is not an issue. If you need to use multiple processes, then each process should have
+ * its own Localytics API key in order to make data processing thread-safe.</li>
  * </ul>
- * <p>
- * This class is thread-safe.
  *
  * @version 2.0
  */
@@ -189,7 +196,7 @@ public final class LocalyticsSession
      * By using the class name for the HandlerThread, obfuscation through Proguard is more effective: if Proguard changes the
      * class name, the thread name also changes.
      */
-    private static final HandlerThread sUploadHandlerThread = getHandlerThread(UploadHandler.class.getSimpleName());
+    protected static final HandlerThread sUploadHandlerThread = getHandlerThread(UploadHandler.class.getSimpleName());
 
     /**
      * Helper to obtain a new {@link HandlerThread}.
@@ -212,6 +219,17 @@ public final class LocalyticsSession
     }
 
     /**
+     * Maps an API key to a singleton instance of the {@link SessionHandler}. Lazily initialized during construction of the
+     * {@link LocalyticsSession} object.
+     */
+    private static final Map<String, SessionHandler> sLocalyticsSessionHandlerMap = new HashMap<String, SessionHandler>();
+
+    /**
+     * Intrinsic lock for synchronizing the initialization of {@link #sLocalyticsSessionHandlerMap}.
+     */
+    private static final Object[] sLocalyticsSessionIntrinsicLock = new Object[0];
+
+    /**
      * Handler object where all session requests of this instance of LocalyticsSession are handed off to.
      * <p>
      * This Handler is the key thread synchronization point for all work inside the LocalyticsSession.
@@ -226,18 +244,13 @@ public final class LocalyticsSession
     private final Context mContext;
 
     /**
-     * Localytics application key
-     */
-    private final String mLocalyticsKey;
-
-    /**
      * Keeps track of which Localytics clients are currently uploading, in order to allow only one upload for a given key at a
      * time.
      * <p>
      * This field can only be read/written to from the {@link #sSessionHandlerThread}. This invariant is maintained by only
      * accessing this field from within the {@link #mSessionHandler}.
      */
-    private static Map<String, Boolean> sIsUploadingMap = new HashMap<String, Boolean>();
+    protected static final Map<String, Boolean> sIsUploadingMap = new HashMap<String, Boolean>();
 
     /**
      * Constructs a new {@link LocalyticsSession} object.
@@ -261,6 +274,18 @@ public final class LocalyticsSession
         }
 
         /*
+         * Prevent the client from providing a subclass of Context that returns the Localytics package name.
+         *
+         * Note that because getPackageName() is a method and could theoretically return different results with each invocation,
+         * this check doesn't guarantee that a nefarious caller will be detected.
+         */
+        if (Constants.LOCALYTICS_PACKAGE_NAME.equals(context.getPackageName())
+                && !context.getClass().getName().equals("android.test.IsolatedContext") && !context.getClass().getName().equals("android.test.RenamingDelegatingContext")) //$NON-NLS-1$ //$NON-NLS-2$
+        {
+            throw new IllegalArgumentException(String.format("context.getPackageName() returned %s", context.getPackageName())); //$NON-NLS-1$
+        }
+
+        /*
          * Get the application context to avoid having the Localytics object holding onto an Activity object. Using application
          * context is very important to prevent the customer from giving the library multiple different contexts with different
          * package names, which would corrupt the events in the database.
@@ -272,16 +297,27 @@ public final class LocalyticsSession
          * and earlier. See <http://code.google.com/p/android/issues/detail?id=4469> for details.
          */
         mContext = !(context.getClass().getName().equals("android.test.RenamingDelegatingContext")) && Constants.CURRENT_API_LEVEL >= 8 ? context.getApplicationContext() : context; //$NON-NLS-1$
-        mLocalyticsKey = key;
 
-        mSessionHandler = new SessionHandler(mContext, mLocalyticsKey, sSessionHandlerThread.getLooper());
+        synchronized (sLocalyticsSessionIntrinsicLock)
+        {
+            SessionHandler handler = sLocalyticsSessionHandlerMap.get(key);
 
-        /*
-         * Complete Handler initialization on a background thread. Note that this is not generally a good best practice, as the
-         * LocalyticsSession object (and its child objects) should be fully initialized by the time the constructor returns.
-         * However this implementation is safe, as the Handler will process this initialization message before any other message.
-         */
-        mSessionHandler.sendMessage(mSessionHandler.obtainMessage(SessionHandler.MESSAGE_INIT));
+            if (null == handler)
+            {
+                handler = new SessionHandler(mContext, key, sSessionHandlerThread.getLooper());
+                sLocalyticsSessionHandlerMap.put(key, handler);
+
+                /*
+                 * Complete Handler initialization on a background thread. Note that this is not generally a good best practice,
+                 * as the LocalyticsSession object (and its child objects) should be fully initialized by the time the constructor
+                 * returns. However this implementation is safe, as the Handler will process this initialization message before
+                 * any other message.
+                 */
+                handler.sendMessage(handler.obtainMessage(SessionHandler.MESSAGE_INIT));
+            }
+
+            mSessionHandler = handler;
+        }
     }
 
     /**
@@ -304,49 +340,164 @@ public final class LocalyticsSession
     }
 
     /**
-     * Opens the Localytics session. The session time as presented on the website is the time between the first <code>open</code>
-     * and the final <code>close</code> so it is recommended to open the session as early as possible, and close it at the last
-     * moment. The session must be opened before {@link #tagEvent(String)} or {@link #tagEvent(String, Map)} can be called, so
-     * this call should be placed in {@code Activity#onCreate(Bundle)}.
-     * <p>
-     * If for any reason this is called more than once without an intervening call to {@link #close()}, subsequent calls to open
-     * will be ignored.
-     * <p>
-     * For applications with multiple Activities, every Activity should call <code>open</code> in <code>onCreate</code>. This will
-     * cause each Activity to reconnect to the currently running session.
+     * Behaves identically to calling {@code open(null)}.
+     *
+     * @see #open(List)
      */
     public void open()
     {
-        mSessionHandler.sendEmptyMessage(SessionHandler.MESSAGE_OPEN);
+        open(null);
     }
 
     /**
-     * Closes the Localytics session. This should be done when the application or activity is ending. Because of the way the
-     * Android lifecycle works, this call could end up in a place which gets called multiple times (such as <code>onPause</code>
-     * which is the recommended location). This is fine because only the last close is processed by the server. <br>
-     * Closing does not cause the session to stop collecting data. This is a result of the application life cycle. It is possible
-     * for onPause to be called long before the application is actually ready to close the session.
+     * Opens the Localytics session. The session should be opened before {@link #tagEvent(String)}, {@link #tagEvent(String, Map)}
+     * , {@link #tagEvent(String, Map, List)}, or {@link #tagScreen(String)} are called.
+     * <p>
+     * If a new session is opened shortly--within a few seconds--after an earlier session is closed, Localytics will reconnect to
+     * the previous session (effectively causing the previous close to be ignored). This ensures that as a user moves from
+     * Activity to Activity in an app, that is considered a single session. When a session is reconnected, the
+     * {@code customDimensions} for the initial open are kept and dimensions for the second open are ignored.
+     * <p>
+     * If for any reason open is called more than once without an intervening call to {@link #close()} or {@link #close(List)},
+     * subsequent calls to open will be ignored.
+     *
+     * @param customDimensions A set of custom reporting dimensions. If this parameter is null or empty, then no custom dimensions
+     *            are recorded and the behavior with respect to custom dimensions is like simply calling {@link #open()}. The
+     *            number of dimensions is capped at four. If there are more than four elements, the extra elements are ignored.
+     *            This parameter may not contain null or empty elements. This parameter is only used for enterprise level
+     *            accounts. For non-enterprise accounts, custom dimensions will be uploaded but will not be accessible in reports
+     *            until the account is upgraded to enterprise status.
+     * @throws IllegalArgumentException if {@code customDimensions} contains null or empty elements.
+     */
+    public void open(final List<String> customDimensions)
+    {
+        if (Constants.IS_PARAMETER_CHECKING_ENABLED)
+        {
+            if (null != customDimensions)
+            {
+                /*
+                 * Calling this with empty dimensions is a smell that indicates a possible programming error on the part of the
+                 * caller
+                 */
+                if (customDimensions.isEmpty())
+                {
+                    if (Constants.IS_LOGGABLE)
+                    {
+                        Log.w(Constants.LOG_TAG, "customDimensions is empty.  Did the caller make an error?"); //$NON-NLS-1$
+                    }
+                }
+
+                if (customDimensions.size() > Constants.MAX_CUSTOM_DIMENSIONS)
+                {
+                    if (Constants.IS_LOGGABLE)
+                    {
+                        Log.w(Constants.LOG_TAG, String.format("customDimensions size is %d, exceeding the maximum size of %d.  Did the caller make an error?", Integer.valueOf(customDimensions.size()), Integer.valueOf(Constants.MAX_CUSTOM_DIMENSIONS))); //$NON-NLS-1$
+                    }
+                }
+
+                for (final String element : customDimensions)
+                {
+                    if (null == element)
+                    {
+                        throw new IllegalArgumentException("customDimensions cannot contain null elements"); //$NON-NLS-1$
+                    }
+                    if (0 == element.length())
+                    {
+                        throw new IllegalArgumentException("customDimensions cannot contain empty elements"); //$NON-NLS-1$
+                    }
+                }
+            }
+        }
+
+        if (null == customDimensions || customDimensions.isEmpty())
+        {
+            mSessionHandler.sendEmptyMessage(SessionHandler.MESSAGE_OPEN);
+        }
+        else
+        {
+            mSessionHandler.sendMessage(mSessionHandler.obtainMessage(SessionHandler.MESSAGE_OPEN, new TreeMap<String, String>(convertDimensionsToAttributes(customDimensions))));
+        }
+    }
+
+    /**
+     * Behaves identically to calling {@code close(null)}.
+     *
+     * @see #close(List)
      */
     public void close()
     {
-        mSessionHandler.sendEmptyMessage(SessionHandler.MESSAGE_CLOSE);
+        close(null);
     }
 
     /**
-     * Allows a session to tag a particular event as having occurred. For example, if a view has three buttons, it might make
-     * sense to tag each button click with the name of the button which was clicked. For another example, in a game with many
-     * levels it might be valuable to create a new tag every time the user gets to a new level in order to determine how far the
-     * average user is progressing in the game. <br>
-     * <strong>Tagging Best Practices</strong>
-     * <ul>
-     * <li>DO NOT use tags to record personally identifiable information.</li>
-     * <li>The best way to use tags is to create all the tag strings as predefined constants and only use those. This is more
-     * efficient and removes the risk of collecting personal information.</li>
-     * <li>Do not set tags inside loops or any other place which gets called frequently. This can cause a lot of data to be stored
-     * and uploaded.</li>
-     * </ul>
-     * <br>
+     * Closes the Localytics session. Once a session has been opened via {@link #open()} or {@link #open(List)}, close the session
+     * when data collection is complete.
+     * <p>
+     * If close is called without open having ever been called, the close has no effect. Similarly, once a session is closed,
+     * subsequent calls to close will be ignored.
      *
+     * @param customDimensions A set of custom reporting dimensions. If this parameter is null or empty, then no custom dimensions
+     *            are recorded and the behavior with respect to custom dimensions is like simply calling {@link #close()}. The
+     *            number of dimensions is capped at four. If there are more than four elements, the extra elements are ignored.
+     *            This parameter may not contain null or empty elements. This parameter is only used for enterprise level
+     *            accounts. For non-enterprise accounts, custom dimensions will be uploaded but will not be accessible in reports
+     *            until the account is upgraded to enterprise status.
+     * @throws IllegalArgumentException if {@code customDimensions} contains null or empty elements.
+     */
+    public void close(final List<String> customDimensions)
+    {
+        if (Constants.IS_PARAMETER_CHECKING_ENABLED)
+        {
+            if (null != customDimensions)
+            {
+                /*
+                 * Calling this with empty dimensions is a smell that indicates a possible programming error on the part of the
+                 * caller
+                 */
+                if (customDimensions.isEmpty())
+                {
+                    if (Constants.IS_LOGGABLE)
+                    {
+                        Log.w(Constants.LOG_TAG, "customDimensions is empty.  Did the caller make an error?"); //$NON-NLS-1$
+                    }
+                }
+
+                if (customDimensions.size() > Constants.MAX_CUSTOM_DIMENSIONS)
+                {
+                    if (Constants.IS_LOGGABLE)
+                    {
+                        Log.w(Constants.LOG_TAG, String.format("customDimensions size is %d, exceeding the maximum size of %d.  Did the caller make an error?", Integer.valueOf(customDimensions.size()), Integer.valueOf(Constants.MAX_CUSTOM_DIMENSIONS))); //$NON-NLS-1$
+                    }
+                }
+
+                for (final String element : customDimensions)
+                {
+                    if (null == element)
+                    {
+                        throw new IllegalArgumentException("customDimensions cannot contain null elements"); //$NON-NLS-1$
+                    }
+                    if (0 == element.length())
+                    {
+                        throw new IllegalArgumentException("customDimensions cannot contain empty elements"); //$NON-NLS-1$
+                    }
+                }
+            }
+        }
+
+        if (null == customDimensions || customDimensions.isEmpty())
+        {
+            mSessionHandler.sendEmptyMessage(SessionHandler.MESSAGE_CLOSE);
+        }
+        else
+        {
+            mSessionHandler.sendMessage(mSessionHandler.obtainMessage(SessionHandler.MESSAGE_CLOSE, new TreeMap<String, String>(convertDimensionsToAttributes(customDimensions))));
+        }
+    }
+
+    /**
+     * Behaves identically to calling {@code tagEvent(event, null, null)}.
+     *
+     * @see #tagEvent(String, Map, List)
      * @param event The name of the event which occurred. Cannot be null or empty string.
      * @throws IllegalArgumentException if {@code event} is null.
      * @throws IllegalArgumentException if {@code event} is empty.
@@ -357,21 +508,10 @@ public final class LocalyticsSession
     }
 
     /**
-     * Allows a session to tag a particular event as having occurred, and optionally attach a collection of attributes to it. For
-     * example, if a view has three buttons, it might make sense to tag each button with the name of the button which was clicked.
-     * For another example, in a game with many levels it might be valuable to create a new tag every time the user gets to a new
-     * level in order to determine how far the average user is progressing in the game. <br>
-     * <strong>Tagging Best Practices</strong>
-     * <ul>
-     * <li>DO NOT use tags to record personally identifiable information.</li>
-     * <li>The best way to use tags is to create all the tag strings as predefined constants and only use those. This is more
-     * efficient and removes the risk of collecting personal information.</li>
-     * <li>Do not set tags inside loops or any other place which gets called frequently. This can cause a lot of data to be stored
-     * and uploaded.</li>
-     * </ul>
-     * <br>
+     * Behaves identically to calling {@code tagEvent(event, attributes, null)}.
      *
-     * @param event The name of the event which occurred.
+     * @see #tagEvent(String, Map, List)
+     * @param event The name of the event which occurred. Cannot be null or empty string.
      * @param attributes The collection of attributes for this particular event. If this parameter is null or empty, then calling
      *            this method has the same effect as calling {@link #tagEvent(String)}. This parameter may not contain null or
      *            empty keys or values.
@@ -381,7 +521,48 @@ public final class LocalyticsSession
      */
     public void tagEvent(final String event, final Map<String, String> attributes)
     {
-        if (Constants.ENABLE_PARAMETER_CHECKING)
+        tagEvent(event, attributes, null);
+    }
+
+    /**
+     * <p>
+     * Within the currently open session, tags that {@code event} occurred (with optionally included attributes and dimensions).
+     * </p>
+     * <p>
+     * Attributes: Additional key/value pairs with data related to an event. For example, let's say your app displays a dialog
+     * with two buttons: OK and Cancel. When the user clicks on one of the buttons, the event might be "button clicked." The
+     * attribute key might be "button_label" and the value would either be "OK" or "Cancel" depending on which button was clicked.
+     * </p>
+     * <p>
+     * Custom dimensions: TODO
+     * </p>
+     * <strong>Best Practices</strong>
+     * <ul>
+     * <li>DO NOT use events, attributes, or dimensions to record personally identifiable information.</li>
+     * <li>The best way to use events is to create all the event strings as predefined constants and only use those. This is more
+     * efficient and removes the risk of collecting personal information.</li>
+     * <li>Do not tag events inside loops or any other place which gets called frequently. This can cause a lot of data to be
+     * stored and uploaded.</li>
+     * </ul>
+     *
+     * @param event The name of the event which occurred. Cannot be null or empty string.
+     * @param attributes The collection of attributes for this particular event. If this parameter is null or empty, then no
+     *            attributes are recorded and the behavior with respect to attributes is like simply calling
+     *            {@link #tagEvent(String)}. This parameter may not contain null or empty keys or values.
+     * @param customDimensions A set of custom reporting dimensions. If this parameter is null or empty, then no custom dimensions
+     *            are recorded and the behavior with respect to custom dimensions is like simply calling {@link #tagEvent(String)}
+     *            . The number of dimensions is capped at four. If there are more than four elements, the extra elements are
+     *            ignored. This parameter may not contain null or empty elements. This parameter is only used for enterprise level
+     *            accounts. For non-enterprise accounts, custom dimensions will be uploaded but will not be accessible in reports
+     *            until the account is upgraded to enterprise status.
+     * @throws IllegalArgumentException if {@code event} is null.
+     * @throws IllegalArgumentException if {@code event} is empty.
+     * @throws IllegalArgumentException if {@code attributes} contains null keys, empty keys, null values, or empty values.
+     * @throws IllegalArgumentException if {@code customDimensions} contains null or empty elements.
+     */
+    public void tagEvent(final String event, final Map<String, String> attributes, final List<String> customDimensions)
+    {
+        if (Constants.IS_PARAMETER_CHECKING_ENABLED)
         {
             if (null == event)
             {
@@ -403,7 +584,15 @@ public final class LocalyticsSession
                 {
                     if (Constants.IS_LOGGABLE)
                     {
-                        Log.i(Constants.LOG_TAG, "attributes is empty.  Did the caller make an error?"); //$NON-NLS-1$
+                        Log.w(Constants.LOG_TAG, "attributes is empty.  Did the caller make an error?"); //$NON-NLS-1$
+                    }
+                }
+
+                if (attributes.size() > Constants.MAX_NUM_ATTRIBUTES)
+                {
+                    if (Constants.IS_LOGGABLE)
+                    {
+                        Log.w(Constants.LOG_TAG, String.format("attributes size is %d, exceeding the maximum size of %d.  Did the caller make an error?", Integer.valueOf(attributes.size()), Integer.valueOf(Constants.MAX_NUM_ATTRIBUTES))); //$NON-NLS-1$
                     }
                 }
 
@@ -430,26 +619,83 @@ public final class LocalyticsSession
                     }
                 }
             }
+
+            if (null != customDimensions)
+            {
+                /*
+                 * Calling this with empty dimensions is a smell that indicates a possible programming error on the part of the
+                 * caller
+                 */
+                if (customDimensions.isEmpty())
+                {
+                    if (Constants.IS_LOGGABLE)
+                    {
+                        Log.w(Constants.LOG_TAG, "customDimensions is empty.  Did the caller make an error?"); //$NON-NLS-1$
+                    }
+                }
+
+                if (customDimensions.size() > Constants.MAX_CUSTOM_DIMENSIONS)
+                {
+                    if (Constants.IS_LOGGABLE)
+                    {
+                        Log.w(Constants.LOG_TAG, String.format("customDimensions size is %d, exceeding the maximum size of %d.  Did the caller make an error?", Integer.valueOf(customDimensions.size()), Integer.valueOf(Constants.MAX_CUSTOM_DIMENSIONS))); //$NON-NLS-1$
+                    }
+                }
+
+                for (final String element : customDimensions)
+                {
+                    if (null == element)
+                    {
+                        throw new IllegalArgumentException("customDimensions cannot contain null elements"); //$NON-NLS-1$
+                    }
+                    if (0 == element.length())
+                    {
+                        throw new IllegalArgumentException("customDimensions cannot contain empty elements"); //$NON-NLS-1$
+                    }
+                }
+            }
         }
 
         final String eventString = String.format(EVENT_FORMAT, mContext.getPackageName(), event);
 
-        if (null == attributes)
+        if (null == attributes && null == customDimensions)
         {
             mSessionHandler.sendMessage(mSessionHandler.obtainMessage(SessionHandler.MESSAGE_TAG_EVENT, new Pair<String, Map<String, String>>(eventString, null)));
         }
         else
         {
             /*
-             * Note: it is important to make a copy of the map, to ensure that a client can't modify the map after this method is
-             * called. A TreeMap is used to ensure that the order that the attributes are written is deterministic. For example,
-             * if the maximum number of attributes is exceeded the entries that occur later alphabetically will be skipped
-             * consistently.
+             * Convert the attributes and custom dimensions into the internal representation of packagename:key
              */
+
+            final TreeMap<String, String> remappedAttributes = new TreeMap<String, String>();
+
+            if (null != attributes)
+            {
+                final String packageName = mContext.getPackageName();
+                for (final Entry<String, String> entry : attributes.entrySet())
+                {
+                    remappedAttributes.put(String.format(AttributesDbColumns.ATTRIBUTE_FORMAT, packageName, entry.getKey()), entry.getValue());
+                }
+            }
+
+            if (null != customDimensions)
+            {
+                remappedAttributes.putAll(convertDimensionsToAttributes(customDimensions));
+            }
+
+            /*
+             * Copying the map is very important to ensure that a client can't modify the map after this method is called. This is
+             * especially important because the map is subsequently processed on a background thread.
+             *
+             * A TreeMap is used to ensure that the order that the attributes are written is deterministic. For example, if the
+             * maximum number of attributes is exceeded the entries that occur later alphabetically will be skipped consistently.
+             */
+
             mSessionHandler.sendMessage(mSessionHandler.obtainMessage(SessionHandler.MESSAGE_TAG_EVENT, new Pair<String, Map<String, String>>(
                                                                                                                                               eventString,
                                                                                                                                               new TreeMap<String, String>(
-                                                                                                                                                                          attributes))));
+                                                                                                                                                                          remappedAttributes))));
         }
     }
 
@@ -608,6 +854,48 @@ public final class LocalyticsSession
     }
 
     /**
+     * Helper to convert a list of dimensions into a set of attributes.
+     * <p>
+     * The number of dimensions is capped at 4. If there are more than 4 elements in {@code customDimensions}, all elements after
+     * 4 are ignored.
+     *
+     * @param customDimensions List of dimensions to convert.
+     * @return Attributes map for the set of dimensions.
+     */
+    private static Map<String, String> convertDimensionsToAttributes(final List<String> customDimensions)
+    {
+        final TreeMap<String, String> attributes = new TreeMap<String, String>();
+
+        if (null != customDimensions)
+        {
+            int index = 0;
+            for (final String element : customDimensions)
+            {
+                if (0 == index)
+                {
+                    attributes.put(AttributesDbColumns.ATTRIBUTE_CUSTOM_DIMENSION_1, element);
+                }
+                else if (1 == index)
+                {
+                    attributes.put(AttributesDbColumns.ATTRIBUTE_CUSTOM_DIMENSION_2, element);
+                }
+                else if (2 == index)
+                {
+                    attributes.put(AttributesDbColumns.ATTRIBUTE_CUSTOM_DIMENSION_3, element);
+                }
+                else if (3 == index)
+                {
+                    attributes.put(AttributesDbColumns.ATTRIBUTE_CUSTOM_DIMENSION_4, element);
+                }
+
+                index++;
+            }
+        }
+
+        return attributes;
+    }
+
+    /**
      * Helper class to handle session-related work on the {@link LocalyticsSession#sSessionHandlerThread}.
      */
     /* package */static final class SessionHandler extends Handler
@@ -620,12 +908,16 @@ public final class LocalyticsSession
         public static final int MESSAGE_INIT = 0;
 
         /**
-         * Empty handler message to open a localytics session
+         * Handler message to open a session.
+         * <p>
+         * {@link Message#obj} is either null or a {@code Map<String, String>} containing attributes for the open.
          */
         public static final int MESSAGE_OPEN = 1;
 
         /**
-         * Empty handler message to close a localytics session
+         * Handler message to close a session.
+         * <p>
+         * {@link Message#obj} is either null or a {@code Map<String, String>} containing attributes for the close.
          */
         public static final int MESSAGE_CLOSE = 2;
 
@@ -686,7 +978,7 @@ public final class LocalyticsSession
         /**
          * Localytics database
          */
-        private LocalyticsProvider mProvider;
+        protected LocalyticsProvider mProvider;
 
         /**
          * The Localytics API key for the session.
@@ -694,24 +986,9 @@ public final class LocalyticsSession
         private final String mApiKey;
 
         /**
-         * {@link ApiKeysDbColumns#_ID} for the {@link LocalyticsSession#mLocalyticsKey}.
+         * {@link ApiKeysDbColumns#_ID} for the API key used by this Localytics session handler.
          */
         private long mApiKeyId;
-
-        /**
-         * {@link SessionsDbColumns#_ID} for the session.
-         */
-        private long mSessionId;
-
-        /**
-         * Flag variable indicating whether {@link #MESSAGE_OPEN} has been received yet.
-         */
-        private boolean mIsSessionOpen = false;
-
-        /**
-         * Flag variable indicating whether the user has opted out of data collection.
-         */
-        private boolean mIsOptedOut = false;
 
         /**
          * Handler object where all upload of this instance of LocalyticsSession are handed off to.
@@ -735,9 +1012,9 @@ public final class LocalyticsSession
         {
             super(looper);
 
-            if (Constants.ENABLE_PARAMETER_CHECKING)
+            if (Constants.IS_PARAMETER_CHECKING_ENABLED)
             {
-                if (context == null)
+                if (null == context)
                 {
                     throw new IllegalArgumentException("context cannot be null"); //$NON-NLS-1$
                 }
@@ -760,7 +1037,7 @@ public final class LocalyticsSession
 
                 if (Constants.IS_LOGGABLE)
                 {
-                    Log.v(Constants.LOG_TAG, String.format("Handler received message %s", msg.toString())); //$NON-NLS-1$
+                    Log.v(Constants.LOG_TAG, String.format("Handler received %s", msg)); //$NON-NLS-1$
                 }
 
                 switch (msg.what)
@@ -772,7 +1049,7 @@ public final class LocalyticsSession
                             Log.v(Constants.LOG_TAG, "Handler received MESSAGE_INIT"); //$NON-NLS-1$
                         }
 
-                        init();
+                        SessionHandler.this.init();
 
                         break;
                     }
@@ -785,7 +1062,13 @@ public final class LocalyticsSession
 
                         final boolean isOptingOut = msg.arg1 == 0 ? false : true;
 
-                        SessionHandler.this.optOut(isOptingOut);
+                        mProvider.runBatchTransaction(new Runnable()
+                        {
+                            public void run()
+                            {
+                                SessionHandler.this.optOut(isOptingOut);
+                            }
+                        });
 
                         break;
                     }
@@ -796,7 +1079,14 @@ public final class LocalyticsSession
                             Log.v(Constants.LOG_TAG, "Handler received MESSAGE_OPEN"); //$NON-NLS-1$
                         }
 
-                        SessionHandler.this.open(false);
+                        mProvider.runBatchTransaction(new Runnable()
+                        {
+                            @SuppressWarnings("unchecked")
+                            public void run()
+                            {
+                                SessionHandler.this.open(false, (Map<String, String>) msg.obj);
+                            }
+                        });
 
                         break;
                     }
@@ -807,7 +1097,14 @@ public final class LocalyticsSession
                             Log.d(Constants.LOG_TAG, "Handler received MESSAGE_CLOSE"); //$NON-NLS-1$
                         }
 
-                        SessionHandler.this.close();
+                        mProvider.runBatchTransaction(new Runnable()
+                        {
+                            @SuppressWarnings("unchecked")
+                            public void run()
+                            {
+                                SessionHandler.this.close((Map<String, String>) msg.obj);
+                            }
+                        });
 
                         break;
                     }
@@ -815,7 +1112,7 @@ public final class LocalyticsSession
                     {
                         if (Constants.IS_LOGGABLE)
                         {
-                            Log.d(Constants.LOG_TAG, "Handler received MESSAGE_TAG"); //$NON-NLS-1$
+                            Log.d(Constants.LOG_TAG, "Handler received MESSAGE_TAG_EVENT"); //$NON-NLS-1$
                         }
 
                         @SuppressWarnings("unchecked")
@@ -823,7 +1120,58 @@ public final class LocalyticsSession
                         final String event = pair.first;
                         final Map<String, String> attributes = pair.second;
 
-                        SessionHandler.this.tagEvent(event, attributes);
+                        mProvider.runBatchTransaction(new Runnable()
+                        {
+                            public void run()
+                            {
+                                if (null != getOpenSessionId(mProvider))
+                                {
+                                    tagEvent(event, attributes);
+                                }
+                                else
+                                {
+                                    /*
+                                     * The open and close only care about custom dimensions
+                                     */
+                                    final Map<String, String> openCloseAttributes;
+                                    if (null == attributes)
+                                    {
+                                        openCloseAttributes = null;
+                                    }
+                                    else if (attributes.containsKey(AttributesDbColumns.ATTRIBUTE_CUSTOM_DIMENSION_1)
+                                            || attributes.containsKey(AttributesDbColumns.ATTRIBUTE_CUSTOM_DIMENSION_2)
+                                            || attributes.containsKey(AttributesDbColumns.ATTRIBUTE_CUSTOM_DIMENSION_3)
+                                            || attributes.containsKey(AttributesDbColumns.ATTRIBUTE_CUSTOM_DIMENSION_4))
+                                    {
+                                        openCloseAttributes = new TreeMap<String, String>();
+                                        if (attributes.containsKey(AttributesDbColumns.ATTRIBUTE_CUSTOM_DIMENSION_1))
+                                        {
+                                            openCloseAttributes.put(AttributesDbColumns.ATTRIBUTE_CUSTOM_DIMENSION_1, attributes.get(AttributesDbColumns.ATTRIBUTE_CUSTOM_DIMENSION_1));
+                                        }
+                                        if (attributes.containsKey(AttributesDbColumns.ATTRIBUTE_CUSTOM_DIMENSION_2))
+                                        {
+                                            openCloseAttributes.put(AttributesDbColumns.ATTRIBUTE_CUSTOM_DIMENSION_2, attributes.get(AttributesDbColumns.ATTRIBUTE_CUSTOM_DIMENSION_2));
+                                        }
+                                        if (attributes.containsKey(AttributesDbColumns.ATTRIBUTE_CUSTOM_DIMENSION_3))
+                                        {
+                                            openCloseAttributes.put(AttributesDbColumns.ATTRIBUTE_CUSTOM_DIMENSION_3, attributes.get(AttributesDbColumns.ATTRIBUTE_CUSTOM_DIMENSION_3));
+                                        }
+                                        if (attributes.containsKey(AttributesDbColumns.ATTRIBUTE_CUSTOM_DIMENSION_4))
+                                        {
+                                            openCloseAttributes.put(AttributesDbColumns.ATTRIBUTE_CUSTOM_DIMENSION_4, attributes.get(AttributesDbColumns.ATTRIBUTE_CUSTOM_DIMENSION_4));
+                                        }
+                                    }
+                                    else
+                                    {
+                                        openCloseAttributes = null;
+                                    }
+
+                                    open(false, openCloseAttributes);
+                                    tagEvent(event, attributes);
+                                    close(openCloseAttributes);
+                                }
+                            }
+                        });
 
                         break;
                     }
@@ -831,12 +1179,18 @@ public final class LocalyticsSession
                     {
                         if (Constants.IS_LOGGABLE)
                         {
-                            Log.d(Constants.LOG_TAG, "Handler received MESSAGE_SCREEN"); //$NON-NLS-1$
+                            Log.d(Constants.LOG_TAG, "Handler received MESSAGE_TAG_SCREEN"); //$NON-NLS-1$
                         }
 
                         final String screen = (String) msg.obj;
 
-                        SessionHandler.this.tagScreen(screen);
+                        mProvider.runBatchTransaction(new Runnable()
+                        {
+                            public void run()
+                            {
+                                SessionHandler.this.tagScreen(screen);
+                            }
+                        });
 
                         break;
                     }
@@ -852,7 +1206,13 @@ public final class LocalyticsSession
                          */
                         final Runnable callback = (Runnable) msg.obj;
 
-                        SessionHandler.this.upload(callback);
+                        mProvider.runBatchTransaction(new Runnable()
+                        {
+                            public void run()
+                            {
+                                SessionHandler.this.upload(callback);
+                            }
+                        });
 
                         break;
                     }
@@ -891,29 +1251,37 @@ public final class LocalyticsSession
         }
 
         /**
+         * Projection for querying details of the current API key
+         */
+        private static final String[] PROJECTION_INIT_API_KEY = new String[]
+            {
+                ApiKeysDbColumns._ID,
+                ApiKeysDbColumns.OPT_OUT,
+                ApiKeysDbColumns.UUID };
+
+        /**
+         * Selection for a specific API key ID
+         */
+        private static final String SELECTION_INIT_API_KEY = String.format("%s = ?", ApiKeysDbColumns.API_KEY); //$NON-NLS-1$
+
+        /**
          * Initialize the handler post construction.
          * <p>
          * This method must only be called once.
          * <p>
-         * Note: This method is a private implementation detail. It is only made public for unit testing purposes. The public
-         * interface is to send {@link #MESSAGE_INIT} to the Handler.
+         * Note: This method is a private implementation detail. It is only made package accessible for unit testing purposes. The
+         * public interface is to send {@link #MESSAGE_INIT} to the Handler.
          *
          * @see #MESSAGE_INIT
          */
-        public void init()
+        /* package */void init()
         {
             mProvider = LocalyticsProvider.getInstance(mContext, mApiKey);
 
-            /*
-             * Check whether this session key is opted out
-             */
             Cursor cursor = null;
             try
             {
-                cursor = mProvider.query(ApiKeysDbColumns.TABLE_NAME, new String[]
-                    {
-                        ApiKeysDbColumns._ID,
-                        ApiKeysDbColumns.OPT_OUT }, String.format("%s = ?", ApiKeysDbColumns.API_KEY), new String[] //$NON-NLS-1$
+                cursor = mProvider.query(ApiKeysDbColumns.TABLE_NAME, PROJECTION_INIT_API_KEY, SELECTION_INIT_API_KEY, new String[]
                     { mApiKey }, null);
 
                 if (cursor.moveToFirst())
@@ -925,7 +1293,6 @@ public final class LocalyticsSession
                     }
 
                     mApiKeyId = cursor.getLong(cursor.getColumnIndexOrThrow(ApiKeysDbColumns._ID));
-                    mIsOptedOut = cursor.getInt(cursor.getColumnIndexOrThrow(ApiKeysDbColumns.OPT_OUT)) != 0;
                 }
                 else
                 {
@@ -946,7 +1313,7 @@ public final class LocalyticsSession
             }
             finally
             {
-                if (cursor != null)
+                if (null != cursor)
                 {
                     cursor.close();
                     cursor = null;
@@ -965,12 +1332,24 @@ public final class LocalyticsSession
         }
 
         /**
+         * Selection for {@link #optOut(boolean)}.
+         */
+        private static final String SELECTION_OPT_IN_OUT = String.format("%s = ?", ApiKeysDbColumns._ID); //$NON-NLS-1$
+
+        /**
          * Set the opt-in/out-out state for all sessions using the current API key.
          * <p>
          * This method must only be called after {@link #init()} is called.
          * <p>
          * Note: This method is a private implementation detail. It is only made package accessible for unit testing purposes. The
          * public interface is to send {@link #MESSAGE_OPT_OUT} to the Handler.
+         * <p>
+         * If a session is already open when an opt-out request is made, then data for the remainder of that session will be
+         * collected. For example, calls to {@link #tagEvent(String, Map)} and {@link #tagScreen(String)} will be recorded until
+         * {@link #close(Map)} is called.
+         * <p>
+         * If a session is not already open when an opt-out request is made, a new session is opened and closed by this method in
+         * order to cause the opt-out event to be uploaded.
          *
          * @param isOptingOut true if the user is opting out. False if the user is opting back in.
          * @see #MESSAGE_OPT_OUT
@@ -979,49 +1358,189 @@ public final class LocalyticsSession
         {
             if (Constants.IS_LOGGABLE)
             {
-                Log.v(Constants.LOG_TAG, String.format("Prior opt-out state is %b, requested opt-out state is %b", Boolean.valueOf(mIsOptedOut), Boolean.valueOf(isOptingOut))); //$NON-NLS-1$
+                Log.v(Constants.LOG_TAG, String.format("Requested opt-out state is %b", Boolean.valueOf(isOptingOut))); //$NON-NLS-1$
             }
 
             // Do nothing if opt-out is unchanged
-            if (mIsOptedOut == isOptingOut)
+            if (isOptedOut(mProvider, mApiKey) == isOptingOut)
             {
                 return;
             }
 
-            mProvider.runBatchTransaction(new Runnable()
+            if (null == getOpenSessionId(mProvider))
             {
-                public void run()
-                {
-                    final ContentValues values = new ContentValues();
-                    values.put(ApiKeysDbColumns.OPT_OUT, Boolean.valueOf(isOptingOut));
-                    mProvider.update(ApiKeysDbColumns.TABLE_NAME, values, String.format("%s = ?", ApiKeysDbColumns._ID), new String[] { Long.toString(mApiKeyId) }); //$NON-NLS-1$
+                /*
+                 * Force a session to contain the opt event
+                 */
+                open(true, null);
+                tagEvent(isOptingOut ? OPT_OUT_EVENT : OPT_IN_EVENT, null);
+                close(null);
+            }
+            else
+            {
+                tagEvent(isOptingOut ? OPT_OUT_EVENT : OPT_IN_EVENT, null);
+            }
 
-                    if (!mIsSessionOpen)
-                    {
-                        /*
-                         * Force a session to contain the opt event
-                         */
-                        open(true);
-                        tagEvent(isOptingOut ? OPT_OUT_EVENT : OPT_IN_EVENT, null);
-                        close();
-                    }
-                    else
-                    {
-                        tagEvent(isOptingOut ? OPT_OUT_EVENT : OPT_IN_EVENT, null);
-                    }
-                }
-            });
-
-            /*
-             * Update the in-memory representation. It is important for the in-memory representation to be updated after the
-             * on-disk representation, just in case the database update fails.
-             */
-            mIsOptedOut = isOptingOut;
+            final ContentValues values = new ContentValues();
+            values.put(ApiKeysDbColumns.OPT_OUT, Boolean.valueOf(isOptingOut));
+            mProvider.update(ApiKeysDbColumns.TABLE_NAME, values, SELECTION_OPT_IN_OUT, new String[]
+                { Long.toString(mApiKeyId) });
         }
 
         /**
-         * Open a session. While this method should only be called once without an intervening call to {@link #close()}, nothing
-         * bad will happen if it is called multiple times.
+         * Projection for {@link #getOpenSessionId(LocalyticsProvider)}.
+         */
+        private static final String[] PROJECTION_GET_OPEN_SESSION_ID_SESSION_ID = new String[]
+            { SessionsDbColumns._ID };
+
+        /**
+         * Projection for getting the event count in {@link #getOpenSessionId(LocalyticsProvider)}.
+         */
+        private static final String[] PROJECTION_GET_OPEN_SESSION_ID_EVENT_COUNT = new String[]
+            { EventsDbColumns._COUNT };
+
+        /**
+         * Selection for {@link #getOpenSessionId(LocalyticsProvider)}.
+         */
+        private static final String SELECTION_GET_OPEN_SESSION_ID_EVENT_COUNT = String.format("%s = ? AND %s = ?", EventsDbColumns.SESSION_KEY_REF, EventsDbColumns.EVENT_NAME);
+
+        /**
+         * @param provider The database to query. Cannot be null.
+         * @return The {@link SessionsDbColumns#_ID} of the currently open session or {@code null} if no session is open. The
+         *         definition of "open" is whether a session has been opened without a corresponding close event.
+         */
+        /* package */static Long getOpenSessionId(final LocalyticsProvider provider)
+        {
+            /*
+             * Get the ID of the last session
+             */
+            final Long sessionId;
+            {
+                Cursor sessionsCursor = null;
+                try
+                {
+
+                    /*
+                     * Query all sessions sorted by session ID, which guarantees to obtain the last session regardless of whether
+                     * the system clock changed.
+                     */
+                    sessionsCursor = provider.query(SessionsDbColumns.TABLE_NAME, PROJECTION_GET_OPEN_SESSION_ID_SESSION_ID, null, null, SessionsDbColumns._ID);
+
+                    if (sessionsCursor.moveToLast())
+                    {
+                        sessionId = Long.valueOf(sessionsCursor.getLong(sessionsCursor.getColumnIndexOrThrow(SessionsDbColumns._ID)));
+                    }
+                    else
+                    {
+                        return null;
+                    }
+                }
+                finally
+                {
+                    if (null != sessionsCursor)
+                    {
+                        sessionsCursor.close();
+                        sessionsCursor = null;
+                    }
+                }
+            }
+
+            /*
+             * See if the session has a close event.
+             */
+            Cursor eventsCursor = null;
+            try
+            {
+                eventsCursor = provider.query(EventsDbColumns.TABLE_NAME, PROJECTION_GET_OPEN_SESSION_ID_EVENT_COUNT, SELECTION_GET_OPEN_SESSION_ID_EVENT_COUNT, new String[]
+                    {
+                        sessionId.toString(),
+                        CLOSE_EVENT }, null);
+
+                if (eventsCursor.moveToFirst())
+                {
+                    if (0 == eventsCursor.getInt(0))
+                    {
+                        return sessionId;
+                    }
+                }
+            }
+            finally
+            {
+                if (null != eventsCursor)
+                {
+                    eventsCursor.close();
+                    eventsCursor = null;
+                }
+            }
+
+            return null;
+        }
+
+        /**
+         * Projection for {@link #open(boolean, Map)}.
+         */
+        private static final String[] PROJECTION_OPEN_EVENT_ID = new String[]
+            { EventsDbColumns._ID };
+
+        /**
+         * Selection for {@link #open(boolean, Map)}.
+         */
+        private static final String SELECTION_OPEN = String.format("%s = ? AND %s >= ?", EventsDbColumns.EVENT_NAME, EventsDbColumns.WALL_TIME); //$NON-NLS-1$
+
+        /**
+         * Projection for {@link #open(boolean, Map)}.
+         */
+        private static final String[] PROJECTION_OPEN_BLOB_EVENTS = new String[]
+            { UploadBlobEventsDbColumns.EVENTS_KEY_REF };
+
+        /**
+         * Projection for {@link #open(boolean, Map)}.
+         */
+        private static final String[] PROJECTION_OPEN_SESSIONS = new String[]
+            {
+                SessionsDbColumns._ID,
+                SessionsDbColumns.SESSION_START_WALL_TIME };
+
+        /**
+         * Selection for {@link #openNewSession(Map)}.
+         */
+        private static final String SELECTION_OPEN_NEW_SESSION = String.format("%s = ?", ApiKeysDbColumns.API_KEY); //$NON-NLS-1$
+
+        /**
+         * Selection for {@link #open(boolean, Map)}.
+         */
+        private static final String SELECTION_OPEN_DELETE_EMPTIES_EVENT_HISTORY_SESSION_KEY_REF = String.format("%s = ?", EventHistoryDbColumns.SESSION_KEY_REF); //$NON-NLS-1$
+
+        /**
+         * Selection for {@link #open(boolean, Map)}.
+         */
+        private static final String SELECTION_OPEN_DELETE_EMPTIES_EVENTS_SESSION_KEY_REF = String.format("%s = ?", EventsDbColumns.SESSION_KEY_REF); //$NON-NLS-1$
+
+        /**
+         * Projection for {@link #open(boolean, Map)}.
+         */
+        private static final String[] PROJECTION_OPEN_DELETE_EMPTIES_EVENT_ID = new String[]
+            { EventsDbColumns._ID };
+
+        /**
+         * Projection for {@link #open(boolean, Map)}.
+         */
+        private static final String[] PROJECTION_OPEN_DELETE_EMPTIES_PROCESSED_IN_BLOB = new String[]
+            { EventHistoryDbColumns.PROCESSED_IN_BLOB };
+
+        /**
+         * Selection for {@link #open(boolean, Map)}.
+         */
+        private static final String SELECTION_OPEN_DELETE_EMPTIES_UPLOAD_BLOBS_ID = String.format("%s = ?", UploadBlobsDbColumns._ID); //$NON-NLS-1$
+
+        /**
+         * Selection for {@link #open(boolean, Map)}.
+         */
+        private static final String SELECTION_OPEN_DELETE_EMPTIES_SESSIONS_ID = String.format("%s = ?", SessionsDbColumns._ID); //$NON-NLS-1$
+
+        /**
+         * Open a session. While this method should only be called once without an intervening call to {@link #close(Map)},
+         * nothing bad will happen if it is called multiple times.
          * <p>
          * This method must only be called after {@link #init()} is called.
          * <p>
@@ -1029,21 +1548,23 @@ public final class LocalyticsSession
          * public interface is to send {@link #MESSAGE_OPEN} to the Handler.
          *
          * @param ignoreLimits true to ignore limits on the number of sessions. False to enforce limits.
+         * @param attributes Attributes to attach to the open. May be null indicating no attributes. Cannot contain null or empty
+         *            keys or values.
          * @see #MESSAGE_OPEN
          */
-        /* package */void open(final boolean ignoreLimits)
+        /* package */void open(final boolean ignoreLimits, final Map<String, String> attributes)
         {
-            if (mIsSessionOpen)
-            {
-                if (Constants.IS_LOGGABLE)
-                {
-                    Log.w(Constants.LOG_TAG, "Session was already open"); //$NON-NLS-1$
-                }
+            // if (null != getOpenSessionId(mProvider))
+            // {
+            // if (Constants.IS_LOGGABLE)
+            // {
+            //                    Log.w(Constants.LOG_TAG, "Session was already open"); //$NON-NLS-1$
+            // }
+            //
+            // return;
+            // }
 
-                return;
-            }
-
-            if (mIsOptedOut)
+            if (isOptedOut(mProvider, mApiKey))
             {
                 if (Constants.IS_LOGGABLE)
                 {
@@ -1064,15 +1585,14 @@ public final class LocalyticsSession
                 Cursor blob_eventsCursor = null;
                 try
                 {
-                    eventsCursor = mProvider.query(EventsDbColumns.TABLE_NAME, new String[]
-                        { EventsDbColumns._ID }, String.format("%s = ? AND %s >= ?", EventsDbColumns.EVENT_NAME, EventsDbColumns.WALL_TIME), new String[] { CLOSE_EVENT, Long.toString(System.currentTimeMillis() - Constants.SESSION_EXPIRATION) }, EVENTS_SORT_ORDER); //$NON-NLS-1$
-                    blob_eventsCursor = mProvider.query(UploadBlobEventsDbColumns.TABLE_NAME, new String[]
-                        { UploadBlobEventsDbColumns.EVENTS_KEY_REF }, null, null, UPLOAD_BLOBS_EVENTS_SORT_ORDER);
+                    eventsCursor = mProvider.query(EventsDbColumns.TABLE_NAME, PROJECTION_OPEN_EVENT_ID, SELECTION_OPEN, new String[]
+                        {
+                            CLOSE_EVENT,
+                            Long.toString(System.currentTimeMillis() - Constants.SESSION_EXPIRATION) }, EVENTS_SORT_ORDER);
+                    blob_eventsCursor = mProvider.query(UploadBlobEventsDbColumns.TABLE_NAME, PROJECTION_OPEN_BLOB_EVENTS, null, null, UPLOAD_BLOBS_EVENTS_SORT_ORDER);
 
                     final int idColumn = eventsCursor.getColumnIndexOrThrow(EventsDbColumns._ID);
-                    final CursorJoiner joiner = new CursorJoiner(eventsCursor, new String[]
-                        { EventsDbColumns._ID }, blob_eventsCursor, new String[]
-                        { UploadBlobEventsDbColumns.EVENTS_KEY_REF });
+                    final CursorJoiner joiner = new CursorJoiner(eventsCursor, PROJECTION_OPEN_EVENT_ID, blob_eventsCursor, PROJECTION_OPEN_BLOB_EVENTS);
 
                     for (final CursorJoiner.Result joinerResult : joiner)
                     {
@@ -1091,7 +1611,7 @@ public final class LocalyticsSession
                                         Log.w(Constants.LOG_TAG, "There were multiple close events within SESSION_EXPIRATION"); //$NON-NLS-1$
                                     }
 
-                                    long newClose = eventsCursor.getLong(eventsCursor.getColumnIndexOrThrow(EventsDbColumns._ID));
+                                    final long newClose = eventsCursor.getLong(eventsCursor.getColumnIndexOrThrow(EventsDbColumns._ID));
                                     if (newClose > closeEventId)
                                     {
                                         closeEventId = newClose;
@@ -1117,21 +1637,25 @@ public final class LocalyticsSession
                 }
                 finally
                 {
-                    if (eventsCursor != null)
+                    if (null != eventsCursor)
                     {
                         eventsCursor.close();
+                        eventsCursor = null;
                     }
-                    if (blob_eventsCursor != null)
+                    if (null != blob_eventsCursor)
                     {
                         blob_eventsCursor.close();
+                        blob_eventsCursor = null;
                     }
                 }
             }
 
             if (-1 != closeEventId)
             {
-                Log.v(Constants.LOG_TAG, "Opening old closed session and reconnecting"); //$NON-NLS-1$
-                mIsSessionOpen = true;
+                if (Constants.IS_LOGGABLE)
+                {
+                    Log.v(Constants.LOG_TAG, "Opening old closed session and reconnecting"); //$NON-NLS-1$
+                }
 
                 openClosedSession(closeEventId);
             }
@@ -1140,10 +1664,7 @@ public final class LocalyticsSession
                 Cursor sessionsCursor = null;
                 try
                 {
-                    sessionsCursor = mProvider.query(SessionsDbColumns.TABLE_NAME, new String[]
-                        {
-                            SessionsDbColumns._ID,
-                            SessionsDbColumns.SESSION_START_WALL_TIME }, null, null, SessionsDbColumns._ID);
+                    sessionsCursor = mProvider.query(SessionsDbColumns.TABLE_NAME, PROJECTION_OPEN_SESSIONS, null, null, SessionsDbColumns._ID);
 
                     if (sessionsCursor.moveToLast())
                     {
@@ -1151,9 +1672,10 @@ public final class LocalyticsSession
                                 - Constants.SESSION_EXPIRATION)
                         {
                             // reconnect
-                            Log.v(Constants.LOG_TAG, "Opening old unclosed session and reconnecting"); //$NON-NLS-1$
-                            mIsSessionOpen = true;
-                            mSessionId = sessionsCursor.getLong(sessionsCursor.getColumnIndexOrThrow(SessionsDbColumns._ID));
+                            if (Constants.IS_LOGGABLE)
+                            {
+                                Log.v(Constants.LOG_TAG, "Opening old unclosed session and reconnecting"); //$NON-NLS-1$
+                            }
                             return;
                         }
 
@@ -1162,9 +1684,9 @@ public final class LocalyticsSession
                         try
                         {
                             final String sessionId = Long.toString(sessionsCursor.getLong(sessionsCursor.getColumnIndexOrThrow(SessionsDbColumns._ID)));
-                            eventsCursor = mProvider.query(EventsDbColumns.TABLE_NAME, new String[]
-                                { EventsDbColumns._ID }, String.format("%s = ?", EventsDbColumns.SESSION_KEY_REF), new String[] //$NON-NLS-1$
-                                { sessionId }, null);
+                            final String[] sessionIdSelection = new String[]
+                                { sessionId };
+                            eventsCursor = mProvider.query(EventsDbColumns.TABLE_NAME, PROJECTION_OPEN_DELETE_EMPTIES_EVENT_ID, SELECTION_OPEN_DELETE_EMPTIES_EVENTS_SESSION_KEY_REF, sessionIdSelection, null);
 
                             if (eventsCursor.getCount() == 0)
                             {
@@ -1174,9 +1696,7 @@ public final class LocalyticsSession
                                 Cursor eventHistory = null;
                                 try
                                 {
-                                    eventHistory = mProvider.query(EventHistoryDbColumns.TABLE_NAME, new String[]
-                                        { EventHistoryDbColumns.PROCESSED_IN_BLOB }, String.format("%s = ?", EventHistoryDbColumns.SESSION_KEY_REF), new String[]
-                                        { sessionId }, null);
+                                    eventHistory = mProvider.query(EventHistoryDbColumns.TABLE_NAME, PROJECTION_OPEN_DELETE_EMPTIES_PROCESSED_IN_BLOB, SELECTION_OPEN_DELETE_EMPTIES_EVENT_HISTORY_SESSION_KEY_REF, sessionIdSelection, null);
                                     while (eventHistory.moveToNext())
                                     {
                                         blobsToDelete.add(Long.valueOf(eventHistory.getLong(eventHistory.getColumnIndexOrThrow(EventHistoryDbColumns.PROCESSED_IN_BLOB))));
@@ -1191,21 +1711,15 @@ public final class LocalyticsSession
                                     }
                                 }
 
-                                mProvider.runBatchTransaction(new Runnable()
+                                mProvider.delete(EventHistoryDbColumns.TABLE_NAME, SELECTION_OPEN_DELETE_EMPTIES_EVENT_HISTORY_SESSION_KEY_REF, sessionIdSelection);
+                                for (final long blobId : blobsToDelete)
                                 {
-
-                                    public void run()
-                                    {
-
-                                        mProvider.delete(EventHistoryDbColumns.TABLE_NAME, String.format("%s = ?", EventHistoryDbColumns.SESSION_KEY_REF), new String[] { sessionId }); //$NON-NLS-1$
-                                        for (long blobId : blobsToDelete)
-                                        {
-                                            mProvider.delete(UploadBlobsDbColumns.TABLE_NAME, String.format("%s = ?", UploadBlobsDbColumns._ID), new String[] { Long.toString(blobId) }); //$NON-NLS-1$
-                                        }
-                                        mProvider.delete(SessionsDbColumns.TABLE_NAME, String.format("%s = ?", SessionsDbColumns._ID), new String[] { sessionId }); //$NON-NLS-1$
-                                    }
-
-                                });
+                                    mProvider.delete(UploadBlobsDbColumns.TABLE_NAME, SELECTION_OPEN_DELETE_EMPTIES_UPLOAD_BLOBS_ID, new String[]
+                                        { Long.toString(blobId) });
+                                }
+                                // mProvider.delete(AttributesDbColumns.TABLE_NAME, String.format("%s = ?",
+                                // AttributesDbColumns.EVENTS_KEY_REF), selectionArgs)
+                                mProvider.delete(SessionsDbColumns.TABLE_NAME, SELECTION_OPEN_DELETE_EMPTIES_SESSIONS_ID, sessionIdSelection);
                             }
                         }
                         finally
@@ -1230,46 +1744,32 @@ public final class LocalyticsSession
                 /*
                  * Check that the maximum number of sessions hasn't been exceeded
                  */
-                if (!ignoreLimits)
+                if (!ignoreLimits && getNumberOfSessions(mProvider) >= Constants.MAX_NUM_SESSIONS)
                 {
-                    Cursor cursor = null;
-                    try
+                    if (Constants.IS_LOGGABLE)
                     {
-                        cursor = mProvider.query(SessionsDbColumns.TABLE_NAME, new String[]
-                            { SessionsDbColumns._ID }, null, null, null);
-
-                        if (cursor.getCount() >= Constants.MAX_NUM_SESSIONS)
-                        {
-                            if (Constants.IS_LOGGABLE)
-                            {
-                                Log.w(Constants.LOG_TAG, "Maximum number of sessions are already on disk--not writing any new sessions until old sessions are cleared out.  Try calling upload() to store more sessions."); //$NON-NLS-1$
-                            }
-                            return;
-                        }
-                    }
-                    finally
-                    {
-                        if (cursor != null)
-                        {
-                            cursor.close();
-                            cursor = null;
-                        }
+                        Log.w(Constants.LOG_TAG, "Maximum number of sessions are already on disk--not writing any new sessions until old sessions are cleared out.  Try calling upload() to store more sessions."); //$NON-NLS-1$
                     }
                 }
+                else
+                {
+                    if (Constants.IS_LOGGABLE)
+                    {
+                        Log.v(Constants.LOG_TAG, "Opening new session"); //$NON-NLS-1$
+                    }
 
-                Log.v(Constants.LOG_TAG, "Opening new session"); //$NON-NLS-1$
-                mIsSessionOpen = true;
-
-                openNewSession();
+                    openNewSession(attributes);
+                }
             }
         }
 
         /**
-         * Opens a new session. This is a helper method to {@link #open(boolean)}.
+         * Opens a new session. This is a helper method to {@link #open(boolean, Map)}.
          *
          * @effects Updates the database by creating a new entry in the {@link SessionsDbColumns} table.
+         * @param attributes Attributes to attach to the session. May be null. Cannot contain null or empty keys or values.
          */
-        private void openNewSession()
+        private void openNewSession(final Map<String, String> attributes)
         {
             final TelephonyManager telephonyManager = (TelephonyManager) mContext.getSystemService(Context.TELEPHONY_SERVICE);
 
@@ -1283,12 +1783,13 @@ public final class LocalyticsSession
 
             // Try and get the deviceId. If it is unavailable (or invalid) use the installation ID instead.
             String deviceId = DatapointHelper.getAndroidIdHashOrNull(mContext);
-            if (deviceId == null)
+            if (null == deviceId)
             {
                 Cursor cursor = null;
                 try
                 {
-                    cursor = mProvider.query(ApiKeysDbColumns.TABLE_NAME, null, String.format("%s = ?", ApiKeysDbColumns.API_KEY), new String[] { mApiKey }, null); //$NON-NLS-1$
+                    cursor = mProvider.query(ApiKeysDbColumns.TABLE_NAME, null, SELECTION_OPEN_NEW_SESSION, new String[]
+                        { mApiKey }, null);
                     if (cursor.moveToFirst())
                     {
                         deviceId = cursor.getString(cursor.getColumnIndexOrThrow(ApiKeysDbColumns.UUID));
@@ -1309,10 +1810,13 @@ public final class LocalyticsSession
             values.put(SessionsDbColumns.DEVICE_MANUFACTURER, DatapointHelper.getManufacturer());
             values.put(SessionsDbColumns.DEVICE_MODEL, Build.MODEL);
             values.put(SessionsDbColumns.DEVICE_SERIAL_NUMBER_HASH, DatapointHelper.getSerialNumberHashOrNull());
+            values.put(SessionsDbColumns.DEVICE_TELEPHONY_ID, DatapointHelper.getTelephonyDeviceIdOrNull(mContext));
             values.put(SessionsDbColumns.DEVICE_TELEPHONY_ID_HASH, DatapointHelper.getTelephonyDeviceIdHashOrNull(mContext));
+            values.put(SessionsDbColumns.DEVICE_WIFI_MAC_HASH, DatapointHelper.getWifiMacHashOrNull(mContext));
             values.put(SessionsDbColumns.LOCALE_COUNTRY, Locale.getDefault().getCountry());
             values.put(SessionsDbColumns.LOCALE_LANGUAGE, Locale.getDefault().getLanguage());
             values.put(SessionsDbColumns.LOCALYTICS_LIBRARY_VERSION, Constants.LOCALYTICS_CLIENT_LIBRARY_VERSION);
+            values.put(SessionsDbColumns.LOCALYTICS_INSTALLATION_ID, getInstallationId(mProvider, mApiKey));
 
             values.putNull(SessionsDbColumns.LATITUDE);
             values.putNull(SessionsDbColumns.LONGITUDE);
@@ -1320,20 +1824,13 @@ public final class LocalyticsSession
             values.put(SessionsDbColumns.NETWORK_COUNTRY, telephonyManager.getNetworkCountryIso());
             values.put(SessionsDbColumns.NETWORK_TYPE, DatapointHelper.getNetworkType(mContext, telephonyManager));
 
-            mProvider.runBatchTransaction(new Runnable()
+            long sessionId = mProvider.insert(SessionsDbColumns.TABLE_NAME, values);
+            if (sessionId == -1)
             {
-                public void run()
-                {
-                    mSessionId = mProvider.insert(SessionsDbColumns.TABLE_NAME, values);
-                    if (mSessionId == -1)
-                    {
-                        throw new RuntimeException("session insert failed"); //$NON-NLS-1$
-                    }
+                throw new AssertionError("session insert failed"); //$NON-NLS-1$
+            }
 
-                    tagEvent(OPEN_EVENT, null);
-                }
-
-            });
+            tagEvent(OPEN_EVENT, attributes);
 
             /*
              * This is placed here so that the DatapointHelper has a chance to retrieve the old UUID before it is deleted.
@@ -1342,25 +1839,87 @@ public final class LocalyticsSession
         }
 
         /**
-         * Reopens a previous session. This is a helper method to {@link #open(boolean)}.
+         * Projection for getting the installation ID. Used by {@link #getInstallationId(LocalyticsProvider, String)}.
+         */
+        private static final String[] PROJECTION_GET_INSTALLATION_ID = new String[]
+            { ApiKeysDbColumns.UUID };
+
+        /**
+         * Selection for a specific API key ID. Used by {@link #getInstallationId(LocalyticsProvider, String)}.
+         */
+        private static final String SELECTION_GET_INSTALLATION_ID = String.format("%s = ?", ApiKeysDbColumns.API_KEY); //$NON-NLS-1$
+
+        /**
+         * Gets the installation ID of the API key.
+         */
+        private static String getInstallationId(final LocalyticsProvider provider, final String apiKey)
+        {
+            Cursor cursor = null;
+            try
+            {
+                cursor = provider.query(ApiKeysDbColumns.TABLE_NAME, PROJECTION_GET_INSTALLATION_ID, SELECTION_GET_INSTALLATION_ID, new String[]
+                    { apiKey }, null);
+
+                if (cursor.moveToFirst())
+                {
+                    return cursor.getString(cursor.getColumnIndexOrThrow(ApiKeysDbColumns.UUID));
+                }
+            }
+            finally
+            {
+                if (null != cursor)
+                {
+                    cursor.close();
+                    cursor = null;
+                }
+            }
+
+            /*
+             * This error case shouldn't normally happen
+             */
+            if (Constants.IS_LOGGABLE)
+            {
+                Log.w(Constants.LOG_TAG, "Installation ID couldn't be found"); //$NON-NLS-1$
+            }
+            return null;
+        }
+
+        /**
+         * Projection for {@link #openClosedSession(long)}.
+         */
+        private static final String[] PROJECTION_OPEN_CLOSED_SESSION = new String[]
+            { EventsDbColumns.SESSION_KEY_REF };
+
+        /**
+         * Selection for {@link #openClosedSession(long)}.
+         */
+        private static final String SELECTION_OPEN_CLOSED_SESSION = String.format("%s = ?", EventsDbColumns._ID); //$NON-NLS-1$
+
+        /**
+         * Selection for {@link #openClosedSession(long)}.
+         */
+        private static final String SELECTION_OPEN_CLOSED_SESSION_ATTRIBUTES = String.format("%s = ?", AttributesDbColumns.EVENTS_KEY_REF); //$NON-NLS-1$
+
+        /**
+         * Reopens a previous session. This is a helper method to {@link #open(boolean, Map)}.
          *
          * @param closeEventId The last close event which is to be deleted so that the old session can be reopened
-         * @effects Updates the database by deleting the last close event and sets {@link #mSessionId} to the session id of the
-         *          last close event
+         * @effects Updates the database by deleting the last close event.
          */
         private void openClosedSession(final long closeEventId)
         {
-            Cursor eventCursor = null;
+            final String[] selectionArgs = new String[]
+                { Long.toString(closeEventId) };
+
+            Cursor cursor = null;
             try
             {
-                eventCursor = mProvider.query(EventsDbColumns.TABLE_NAME, new String[]
-                    { EventsDbColumns.SESSION_KEY_REF }, String.format("%s = ?", EventsDbColumns._ID), new String[] { Long.toString(closeEventId) }, null); //$NON-NLS-1$
+                cursor = mProvider.query(EventsDbColumns.TABLE_NAME, PROJECTION_OPEN_CLOSED_SESSION, SELECTION_OPEN_CLOSED_SESSION, selectionArgs, null);
 
-                if (eventCursor.moveToFirst())
+                if (cursor.moveToFirst())
                 {
-                    mSessionId = eventCursor.getLong(eventCursor.getColumnIndexOrThrow(EventsDbColumns.SESSION_KEY_REF));
-
-                    mProvider.delete(EventsDbColumns.TABLE_NAME, String.format("%s = ?", EventsDbColumns._ID), new String[] { Long.toString(closeEventId) }); //$NON-NLS-1$
+                    mProvider.delete(AttributesDbColumns.TABLE_NAME, SELECTION_OPEN_CLOSED_SESSION_ATTRIBUTES, selectionArgs);
+                    mProvider.delete(EventsDbColumns.TABLE_NAME, SELECTION_OPEN_CLOSED_SESSION, selectionArgs);
                 }
                 else
                 {
@@ -1373,32 +1932,67 @@ public final class LocalyticsSession
                         Log.e(Constants.LOG_TAG, "Event no longer exists"); //$NON-NLS-1$
                     }
 
-                    openNewSession();
+                    openNewSession(null);
                 }
             }
             finally
             {
-                if (eventCursor != null)
+                if (null != cursor)
                 {
-                    eventCursor.close();
+                    cursor.close();
+                    cursor = null;
                 }
             }
         }
 
         /**
-         * Close a session. While this method should only be called after {@link #open(boolean)}, nothing bad will happen if it is
-         * called and {@link #open(boolean)} wasn't called. Similarly, nothing bad will happen if close is called multiple times.
+         * Projection for {@link #getNumberOfSessions(LocalyticsProvider)}.
+         */
+        private static final String[] PROJECTION_GET_NUMBER_OF_SESSIONS = new String[]
+            { SessionsDbColumns._ID };
+
+        /**
+         * Helper method to get the number of sessions currently in the database.
+         *
+         * @param provider Instance of {@link LocalyticsProvider}. Cannot be null.
+         * @return The number of sessions on disk.
+         */
+        /* package */static long getNumberOfSessions(final LocalyticsProvider provider)
+        {
+            Cursor cursor = null;
+            try
+            {
+                cursor = provider.query(SessionsDbColumns.TABLE_NAME, PROJECTION_GET_NUMBER_OF_SESSIONS, null, null, null);
+
+                return cursor.getCount();
+            }
+            finally
+            {
+                if (null != cursor)
+                {
+                    cursor.close();
+                    cursor = null;
+                }
+            }
+        }
+
+        /**
+         * Close a session. While this method should only be called after {@link #open(boolean, Map)}, nothing bad will happen if
+         * it is called and {@link #open(boolean, Map)} wasn't called. Similarly, nothing bad will happen if close is called
+         * multiple times.
          * <p>
          * This method must only be called after {@link #init()} is called.
          * <p>
          * Note: This method is a private implementation detail. It is only made package accessible for unit testing purposes. The
          * public interface is to send {@link #MESSAGE_CLOSE} to the Handler.
          *
+         * @param attributes Set of attributes to attach to the close. May be null indicating no attributes. Cannot contain null
+         *            or empty keys or values.
          * @see #MESSAGE_OPEN
          */
-        /* package */void close()
+        /* package */void close(final Map<String, String> attributes)
         {
-            if (!mIsSessionOpen) // do nothing if session is not open
+            if (null == getOpenSessionId(mProvider)) // do nothing if session is not open
             {
                 if (Constants.IS_LOGGABLE)
                 {
@@ -1407,43 +2001,52 @@ public final class LocalyticsSession
                 return;
             }
 
-            tagEvent(CLOSE_EVENT, null);
-
-            mIsSessionOpen = false;
+            tagEvent(CLOSE_EVENT, attributes);
         }
 
         /**
-         * Tag an event in a session. While this method shouldn't be called unless {@link #open(boolean)} is called first, this
-         * method will simply do nothing if {@link #open(boolean)} hasn't been called.
+         * Projection for {@link #tagEvent(String, Map)}.
+         */
+        private static final String[] PROJECTION_TAG_EVENT = new String[]
+            { SessionsDbColumns.SESSION_START_WALL_TIME };
+
+        /**
+         * Selection for {@link #tagEvent(String, Map)}.
+         */
+        private static final String SELECTION_TAG_EVENT = String.format("%s = ?", SessionsDbColumns._ID); //$NON-NLS-1$
+
+        /**
+         * Tag an event in a session. Although this method SHOULD NOT be called unless a session is open, actually doing so will
+         * have no effect.
          * <p>
          * This method must only be called after {@link #init()} is called.
          * <p>
          * Note: This method is a private implementation detail. It is only made package accessible for unit testing purposes. The
          * public interface is to send {@link #MESSAGE_TAG_EVENT} to the Handler.
          *
-         * @param event The name of the event which occurred.
-         * @param attributes The collection of attributes for this particular event. If this parameter is null, then calling this
-         *            method has the same effect as calling {@link #tagEvent(String)}.
+         * @param event The name of the event which occurred. Cannot be null.
+         * @param attributes The collection of attributes for this particular event. May be null.
          * @see #MESSAGE_TAG_EVENT
          */
         /* package */void tagEvent(final String event, final Map<String, String> attributes)
         {
-            if (!mIsSessionOpen)
+            final Long openSessionId = getOpenSessionId(mProvider);
+            if (null == openSessionId)
             {
                 if (Constants.IS_LOGGABLE)
                 {
-                    Log.w(Constants.LOG_TAG, "Tag not written because the session was not open"); //$NON-NLS-1$
+                    Log.w(Constants.LOG_TAG, "Event not written because a session is not open"); //$NON-NLS-1$
                 }
                 return;
             }
 
             /*
-             * First insert the event
+             * Insert the event and get the event's database ID
              */
             final long eventId;
             {
                 final ContentValues values = new ContentValues();
-                values.put(EventsDbColumns.SESSION_KEY_REF, Long.valueOf(mSessionId));
+                values.put(EventsDbColumns.SESSION_KEY_REF, openSessionId);
                 values.put(EventsDbColumns.UUID, UUID.randomUUID().toString());
                 values.put(EventsDbColumns.EVENT_NAME, event);
                 values.put(EventsDbColumns.REAL_TIME, Long.valueOf(SystemClock.elapsedRealtime()));
@@ -1457,8 +2060,8 @@ public final class LocalyticsSession
                     Cursor cursor = null;
                     try
                     {
-                        cursor = mProvider.query(SessionsDbColumns.TABLE_NAME, new String[]
-                            { SessionsDbColumns.SESSION_START_WALL_TIME }, String.format("%s = ?", SessionsDbColumns._ID), new String[] { Long.toString(mSessionId) }, null); //$NON-NLS-1$
+                        cursor = mProvider.query(SessionsDbColumns.TABLE_NAME, PROJECTION_TAG_EVENT, SELECTION_TAG_EVENT, new String[]
+                            { openSessionId.toString() }, null);
 
                         if (cursor.moveToFirst())
                         {
@@ -1467,7 +2070,7 @@ public final class LocalyticsSession
                         else
                         {
                             // this should never happen
-                            throw new RuntimeException("Session didn't exist"); //$NON-NLS-1$
+                            throw new AssertionError("During tag of open event, session didn't exist"); //$NON-NLS-1$
                         }
                     }
                     finally
@@ -1475,6 +2078,7 @@ public final class LocalyticsSession
                         if (null != cursor)
                         {
                             cursor.close();
+                            cursor = null;
                         }
                     }
                 }
@@ -1492,24 +2096,26 @@ public final class LocalyticsSession
              */
             if (null != attributes)
             {
-                int count = 0;
+                // reusable object
+                final ContentValues values = new ContentValues();
+
+                final String applicationAttributePrefix = String.format(AttributesDbColumns.ATTRIBUTE_FORMAT, mContext.getPackageName(), ""); //$NON-NLS-1$
+                int applicationAttributeCount = 0;
+
                 for (final Entry<String, String> entry : attributes.entrySet())
                 {
                     /*
-                     * Note: the attributes that are skipped are deterministic, because the map is actually an instance of
-                     * TreeMap.
+                     * Detect excess application events
                      */
-                    count++;
-                    if (count > Constants.MAX_NUM_ATTRIBUTES)
+                    if (entry.getKey().startsWith(applicationAttributePrefix))
                     {
-                        if (Constants.IS_LOGGABLE)
+                        applicationAttributeCount++;
+                        if (applicationAttributeCount > Constants.MAX_NUM_ATTRIBUTES)
                         {
-                            Log.w(Constants.LOG_TAG, String.format("Map contains %s keys while the maximum number of attributes is %s.  Some attributes were not written.  Consider reducing the number of attributes.", Integer.valueOf(attributes.size()), Integer.valueOf(Constants.MAX_NUM_ATTRIBUTES))); //$NON-NLS-1$
+                            continue;
                         }
-                        break;
                     }
 
-                    final ContentValues values = new ContentValues();
                     values.put(AttributesDbColumns.EVENTS_KEY_REF, Long.valueOf(eventId));
                     values.put(AttributesDbColumns.ATTRIBUTE_KEY, entry.getKey());
                     values.put(AttributesDbColumns.ATTRIBUTE_VALUE, entry.getValue());
@@ -1518,8 +2124,10 @@ public final class LocalyticsSession
 
                     if (-1 == id)
                     {
-                        throw new RuntimeException("Inserting attribute failed"); //$NON-NLS-1$
+                        throw new AssertionError("Inserting attribute failed"); //$NON-NLS-1$
                     }
+
+                    values.clear();
                 }
             }
 
@@ -1531,7 +2139,7 @@ public final class LocalyticsSession
                 final ContentValues values = new ContentValues();
                 values.put(EventHistoryDbColumns.NAME, event.substring(mContext.getPackageName().length() + 1, event.length()));
                 values.put(EventHistoryDbColumns.TYPE, Integer.valueOf(EventHistoryDbColumns.TYPE_EVENT));
-                values.put(EventHistoryDbColumns.SESSION_KEY_REF, Long.valueOf(mSessionId));
+                values.put(EventHistoryDbColumns.SESSION_KEY_REF, openSessionId);
                 values.putNull(EventHistoryDbColumns.PROCESSED_IN_BLOB);
                 mProvider.insert(EventHistoryDbColumns.TABLE_NAME, values);
 
@@ -1540,8 +2148,24 @@ public final class LocalyticsSession
         }
 
         /**
-         * Tag a screen in a session. While this method shouldn't be called unless {@link #open(boolean)} is called first, this
-         * method will simply do nothing if {@link #open(boolean)} hasn't been called.
+         * Projection for {@link #tagScreen(String)}.
+         */
+        private static final String[] PROJECTION_TAG_SCREEN = new String[]
+            { EventHistoryDbColumns.NAME };
+
+        /**
+         * Selection for {@link #tagScreen(String)}.
+         */
+        private static final String SELECTION_TAG_SCREEN = String.format("%s = ? AND %s = ?", EventHistoryDbColumns.TYPE, EventHistoryDbColumns.SESSION_KEY_REF); //$NON-NLS-1$
+
+        /**
+         * Sort order for {@link #tagScreen(String)}.
+         */
+        private static final String SORT_ORDER_TAG_SCREEN = String.format("%s DESC", EventHistoryDbColumns._ID); //$NON-NLS-1$
+
+        /**
+         * Tag a screen in a session. While this method shouldn't be called unless {@link #open(boolean, Map)} is called first,
+         * this method will simply do nothing if {@link #open(boolean, Map)} hasn't been called.
          * <p>
          * This method performs duplicate suppression, preventing multiple screens with the same value in a row within a given
          * session.
@@ -1556,7 +2180,8 @@ public final class LocalyticsSession
          */
         /* package */void tagScreen(final String screen)
         {
-            if (!mIsSessionOpen)
+            final Long openSessionId = getOpenSessionId(mProvider);
+            if (null == openSessionId)
             {
                 if (Constants.IS_LOGGABLE)
                 {
@@ -1571,8 +2196,10 @@ public final class LocalyticsSession
             Cursor cursor = null;
             try
             {
-                cursor = mProvider.query(EventHistoryDbColumns.TABLE_NAME, new String[]
-                    { EventHistoryDbColumns.NAME }, String.format("%s = ? AND %s = ?", EventHistoryDbColumns.TYPE, EventHistoryDbColumns.SESSION_KEY_REF), new String[] { Integer.toString(EventHistoryDbColumns.TYPE_SCREEN), Long.toString(mSessionId) }, String.format("%s DESC", EventHistoryDbColumns._ID)); //$NON-NLS-1$ //$NON-NLS-2$
+                cursor = mProvider.query(EventHistoryDbColumns.TABLE_NAME, PROJECTION_TAG_SCREEN, SELECTION_TAG_SCREEN, new String[]
+                    {
+                        Integer.toString(EventHistoryDbColumns.TYPE_SCREEN),
+                        openSessionId.toString() }, SORT_ORDER_TAG_SCREEN);
 
                 if (cursor.moveToFirst())
                 {
@@ -1601,12 +2228,35 @@ public final class LocalyticsSession
             final ContentValues values = new ContentValues();
             values.put(EventHistoryDbColumns.NAME, screen);
             values.put(EventHistoryDbColumns.TYPE, Integer.valueOf(EventHistoryDbColumns.TYPE_SCREEN));
-            values.put(EventHistoryDbColumns.SESSION_KEY_REF, Long.valueOf(mSessionId));
+            values.put(EventHistoryDbColumns.SESSION_KEY_REF, openSessionId);
             values.putNull(EventHistoryDbColumns.PROCESSED_IN_BLOB);
             mProvider.insert(EventHistoryDbColumns.TABLE_NAME, values);
 
             conditionallyAddFlowEvent();
         }
+
+        /**
+         * Projection for {@link #conditionallyAddFlowEvent()}.
+         */
+        private static final String[] PROJECTION_FLOW_EVENTS = new String[]
+            { EventsDbColumns._ID };
+
+        /**
+         * Selection for {@link #conditionallyAddFlowEvent()}.
+         */
+        private static final String SELECTION_FLOW_EVENTS = String.format("%s = ?", EventsDbColumns.EVENT_NAME); //$NON-NLS-1$
+
+        /**
+         * Selection arguments for {@link #SELECTION_FLOW_EVENTS} in {@link #conditionallyAddFlowEvent()}.
+         */
+        private static final String[] SELECTION_ARGS_FLOW_EVENTS = new String[]
+            { FLOW_EVENT };
+
+        /**
+         * Projection for {@link #conditionallyAddFlowEvent()}.
+         */
+        private static final String[] PROJECTION_FLOW_BLOBS = new String[]
+            { UploadBlobEventsDbColumns.EVENTS_KEY_REF };
 
         /**
          * Conditionally adds a flow event if no flow event exists in the current upload blob.
@@ -1624,16 +2274,11 @@ public final class LocalyticsSession
             Cursor blob_eventsCursor = null;
             try
             {
-                eventsCursor = mProvider.query(EventsDbColumns.TABLE_NAME, new String[]
-                    { EventsDbColumns._ID }, String.format("%s = ?", EventsDbColumns.EVENT_NAME), new String[] //$NON-NLS-1$
-                    { FLOW_EVENT }, EVENTS_SORT_ORDER);
+                eventsCursor = mProvider.query(EventsDbColumns.TABLE_NAME, PROJECTION_FLOW_EVENTS, SELECTION_FLOW_EVENTS, SELECTION_ARGS_FLOW_EVENTS, EVENTS_SORT_ORDER);
 
-                blob_eventsCursor = mProvider.query(UploadBlobEventsDbColumns.TABLE_NAME, new String[]
-                    { UploadBlobEventsDbColumns.EVENTS_KEY_REF }, null, null, UPLOAD_BLOBS_EVENTS_SORT_ORDER);
+                blob_eventsCursor = mProvider.query(UploadBlobEventsDbColumns.TABLE_NAME, PROJECTION_FLOW_BLOBS, null, null, UPLOAD_BLOBS_EVENTS_SORT_ORDER);
 
-                final CursorJoiner joiner = new CursorJoiner(eventsCursor, new String[]
-                    { EventsDbColumns._ID }, blob_eventsCursor, new String[]
-                    { UploadBlobEventsDbColumns.EVENTS_KEY_REF });
+                final CursorJoiner joiner = new CursorJoiner(eventsCursor, PROJECTION_FLOW_EVENTS, blob_eventsCursor, PROJECTION_FLOW_BLOBS);
                 for (final CursorJoiner.Result joinerResult : joiner)
                 {
                     switch (joinerResult)
@@ -1652,13 +2297,13 @@ public final class LocalyticsSession
             }
             finally
             {
-                if (eventsCursor != null)
+                if (null != eventsCursor)
                 {
                     eventsCursor.close();
                     eventsCursor = null;
                 }
 
-                if (blob_eventsCursor != null)
+                if (null != blob_eventsCursor)
                 {
                     blob_eventsCursor.close();
                     blob_eventsCursor = null;
@@ -1672,12 +2317,39 @@ public final class LocalyticsSession
         }
 
         /**
+         * Projection for {@link #preUploadBuildBlobs(LocalyticsProvider)}.
+         */
+        private static final String[] PROJECTION_UPLOAD_EVENTS = new String[]
+            {
+                EventsDbColumns._ID,
+                EventsDbColumns.EVENT_NAME,
+                EventsDbColumns.WALL_TIME };
+
+        /**
+         * Projection for {@link #preUploadBuildBlobs(LocalyticsProvider)}.
+         */
+        private static final String[] PROJECTION_UPLOAD_BLOBS = new String[]
+            { UploadBlobEventsDbColumns.EVENTS_KEY_REF };
+
+        /**
+         * Projection for {@link #preUploadBuildBlobs(LocalyticsProvider)}.
+         */
+        private static final String SELECTION_UPLOAD_NULL_BLOBS = String.format("%s IS NULL", EventHistoryDbColumns.PROCESSED_IN_BLOB); //$NON-NLS-1$
+
+        /**
+         * Columns to join in {@link #preUploadBuildBlobs(LocalyticsProvider)}.
+         */
+        private static final String[] JOINER_ARG_UPLOAD_EVENTS_COLUMNS = new String[]
+            { EventsDbColumns._ID };
+
+        /**
          * Builds upload blobs for all events.
          *
+         * @param provider Instance of {@link LocalyticsProvider}. Cannot be null.
          * @effects Mutates the database by creating a new upload blob for all events that are unassociated at the time this
          *          method is called.
          */
-        /* package */void preUploadBuildBlobs()
+        /* package */static void preUploadBuildBlobs(final LocalyticsProvider provider)
         {
             /*
              * Group all events that aren't part of an upload blob into a new blob. While this process is a linear algorithm that
@@ -1694,19 +2366,12 @@ public final class LocalyticsSession
             Cursor blob_eventsCursor = null;
             try
             {
-                eventsCursor = mProvider.query(EventsDbColumns.TABLE_NAME, new String[]
-                    {
-                        EventsDbColumns._ID,
-                        EventsDbColumns.EVENT_NAME,
-                        EventsDbColumns.WALL_TIME }, null, null, EVENTS_SORT_ORDER);
+                eventsCursor = provider.query(EventsDbColumns.TABLE_NAME, PROJECTION_UPLOAD_EVENTS, null, null, EVENTS_SORT_ORDER);
 
-                blob_eventsCursor = mProvider.query(UploadBlobEventsDbColumns.TABLE_NAME, new String[]
-                    { UploadBlobEventsDbColumns.EVENTS_KEY_REF }, null, null, UPLOAD_BLOBS_EVENTS_SORT_ORDER);
+                blob_eventsCursor = provider.query(UploadBlobEventsDbColumns.TABLE_NAME, PROJECTION_UPLOAD_BLOBS, null, null, UPLOAD_BLOBS_EVENTS_SORT_ORDER);
 
                 final int idColumn = eventsCursor.getColumnIndexOrThrow(EventsDbColumns._ID);
-                final CursorJoiner joiner = new CursorJoiner(eventsCursor, new String[]
-                    { EventsDbColumns._ID }, blob_eventsCursor, new String[]
-                    { UploadBlobEventsDbColumns.EVENTS_KEY_REF });
+                final CursorJoiner joiner = new CursorJoiner(eventsCursor, JOINER_ARG_UPLOAD_EVENTS_COLUMNS, blob_eventsCursor, PROJECTION_UPLOAD_BLOBS);
                 for (final CursorJoiner.Result joinerResult : joiner)
                 {
                     switch (joinerResult)
@@ -1732,42 +2397,44 @@ public final class LocalyticsSession
             }
             finally
             {
-                if (eventsCursor != null)
+                if (null != eventsCursor)
                 {
                     eventsCursor.close();
+                    eventsCursor = null;
                 }
 
-                if (blob_eventsCursor != null)
+                if (null != blob_eventsCursor)
                 {
                     blob_eventsCursor.close();
+                    blob_eventsCursor = null;
                 }
             }
 
             if (eventIds.size() > 0)
             {
-                final long blobId;
-                {
-                    final ContentValues values = new ContentValues();
-                    values.put(UploadBlobsDbColumns.UUID, UUID.randomUUID().toString());
-                    blobId = mProvider.insert(UploadBlobsDbColumns.TABLE_NAME, values);
-                }
-
-                {
-                    final ContentValues values = new ContentValues();
-                    for (final Long x : eventIds)
-                    {
-                        values.clear();
-
-                        values.put(UploadBlobEventsDbColumns.UPLOAD_BLOBS_KEY_REF, Long.valueOf(blobId));
-                        values.put(UploadBlobEventsDbColumns.EVENTS_KEY_REF, x);
-
-                        mProvider.insert(UploadBlobEventsDbColumns.TABLE_NAME, values);
-                    }
-                }
-
+                // reusable object
                 final ContentValues values = new ContentValues();
-                values.put(EventHistoryDbColumns.PROCESSED_IN_BLOB, Long.valueOf(blobId));
-                mProvider.update(EventHistoryDbColumns.TABLE_NAME, values, String.format("%s IS NULL", EventHistoryDbColumns.PROCESSED_IN_BLOB), null); //$NON-NLS-1$
+
+                final Long blobId;
+                {
+                    values.put(UploadBlobsDbColumns.UUID, UUID.randomUUID().toString());
+                    blobId = Long.valueOf(provider.insert(UploadBlobsDbColumns.TABLE_NAME, values));
+                    values.clear();
+                }
+
+                for (final Long x : eventIds)
+                {
+                    values.put(UploadBlobEventsDbColumns.UPLOAD_BLOBS_KEY_REF, blobId);
+                    values.put(UploadBlobEventsDbColumns.EVENTS_KEY_REF, x);
+
+                    provider.insert(UploadBlobEventsDbColumns.TABLE_NAME, values);
+
+                    values.clear();
+                }
+
+                values.put(EventHistoryDbColumns.PROCESSED_IN_BLOB, blobId);
+                provider.update(EventHistoryDbColumns.TABLE_NAME, values, SELECTION_UPLOAD_NULL_BLOBS, null);
+                values.clear();
             }
         }
 
@@ -1798,13 +2465,7 @@ public final class LocalyticsSession
 
             try
             {
-                mProvider.runBatchTransaction(new Runnable()
-                {
-                    public void run()
-                    {
-                        preUploadBuildBlobs();
-                    }
-                });
+                preUploadBuildBlobs(mProvider);
 
                 sIsUploadingMap.put(mApiKey, Boolean.TRUE);
                 mUploadHandler.sendMessage(mUploadHandler.obtainMessage(UploadHandler.MESSAGE_UPLOAD, callback));
@@ -1819,7 +2480,7 @@ public final class LocalyticsSession
                 sIsUploadingMap.put(mApiKey, Boolean.FALSE);
 
                 // Notify the caller the upload is "complete"
-                if (callback != null)
+                if (null != callback)
                 {
                     /*
                      * Note that a new thread is created for the callback. This ensures that client code can't affect the
@@ -1828,6 +2489,65 @@ public final class LocalyticsSession
                     new Thread(callback, UploadHandler.UPLOAD_CALLBACK_THREAD_NAME).start();
                 }
             }
+        }
+
+        /**
+         * Projection for {@link #isOptedOut(LocalyticsProvider, String)}.
+         */
+        private static final String[] PROJECTION_IS_OPTED_OUT = new String[]
+            { ApiKeysDbColumns.OPT_OUT };
+
+        /**
+         * Selection for {@link #isOptedOut(LocalyticsProvider, String)}.
+         * <p>
+         * The selection argument is the {@link ApiKeysDbColumns#API_KEY}.
+         */
+        private static final String SELECTION_IS_OPTED_OUT = String.format("%s = ?", ApiKeysDbColumns.API_KEY); //$NON-NLS-1$
+
+        /**
+         * @param provider Instance of {@link LocalyticsProvider}. Cannot be null.
+         * @param apiKey Api key to test whether it is opted out. Cannot be null.
+         * @return true if data collection has been opted out. Returns false if data collection is opted-in or if {@code apiKey}
+         *         doesn't exist in the database.
+         * @throws IllegalArgumentException if {@code provider} is null.
+         * @throws IllegalArgumentException if {@code apiKey} is null.
+         */
+        /* package */static boolean isOptedOut(final LocalyticsProvider provider, final String apiKey)
+        {
+            if (Constants.IS_PARAMETER_CHECKING_ENABLED)
+            {
+                if (null == provider)
+                {
+                    throw new IllegalArgumentException("provider cannot be null"); //$NON-NLS-1$
+                }
+
+                if (null == apiKey)
+                {
+                    throw new IllegalArgumentException("apiKey cannot be null"); //$NON-NLS-1$
+                }
+            }
+
+            Cursor cursor = null;
+            try
+            {
+                cursor = provider.query(ApiKeysDbColumns.TABLE_NAME, PROJECTION_IS_OPTED_OUT, SELECTION_IS_OPTED_OUT, new String[]
+                    { apiKey }, null);
+
+                if (cursor.moveToFirst())
+                {
+                    return cursor.getInt(cursor.getColumnIndexOrThrow(ApiKeysDbColumns.OPT_OUT)) != 0;
+                }
+            }
+            finally
+            {
+                if (null != cursor)
+                {
+                    cursor.close();
+                    cursor = null;
+                }
+            }
+
+            return false;
         }
     }
 
@@ -1867,7 +2587,7 @@ public final class LocalyticsSession
         /**
          * Reference to the Localytics database
          */
-        private final LocalyticsProvider mProvider;
+        protected final LocalyticsProvider mProvider;
 
         /**
          * Application context
@@ -1927,7 +2647,7 @@ public final class LocalyticsSession
 
                         try
                         {
-                            final List<JSONObject> toUpload = convertDatabaseToJson();
+                            final List<JSONObject> toUpload = convertDatabaseToJson(mContext, mProvider, mApiKey);
 
                             if (!toUpload.isEmpty())
                             {
@@ -1952,7 +2672,7 @@ public final class LocalyticsSession
                         }
                         finally
                         {
-                            if (callback != null)
+                            if (null != callback)
                             {
                                 /*
                                  * Execute the callback on a separate thread, to avoid exposing this thread to the client of the
@@ -2007,7 +2727,7 @@ public final class LocalyticsSession
          */
         /* package */static boolean uploadSessions(final String url, final String body)
         {
-            if (Constants.ENABLE_PARAMETER_CHECKING)
+            if (Constants.IS_PARAMETER_CHECKING_ENABLED)
             {
                 if (null == url)
                 {
@@ -2022,86 +2742,227 @@ public final class LocalyticsSession
 
             if (Constants.IS_LOGGABLE)
             {
-                Log.v(Constants.LOG_TAG, String.format("Upload body before compression is: %s", body.toString())); //$NON-NLS-1$
+                Log.v(Constants.LOG_TAG, String.format("Upload body before compression is: %s", body)); //$NON-NLS-1$
             }
 
-            final DefaultHttpClient client = new DefaultHttpClient();
-            final HttpPost method = new HttpPost(url);
-            method.addHeader("Content-Type", "application/x-gzip"); //$NON-NLS-1$ //$NON-NLS-2$
-
-            GZIPOutputStream gos = null;
-            try
+            /*
+             * As per Google's documentation, use HttpURLConnection for API 9 and greater and DefaultHttpClient for API 8 and
+             * lower. <http://android-developers.blogspot.com/2011/09/androids-http-clients.html>. HTTP library.
+             *
+             * Note: HTTP GZIP compression is explicitly disabled. Instead, the uploaded data is already GZIPPED before it is put
+             * into the HTTP post.
+             */
+            if (DatapointHelper.getApiLevel() >= 9)
             {
-                final byte[] originalBytes = body.getBytes("UTF-8"); //$NON-NLS-1$
-                final ByteArrayOutputStream baos = new ByteArrayOutputStream(originalBytes.length);
-                gos = new GZIPOutputStream(baos);
-                gos.write(originalBytes);
-                gos.finish();
-                gos.flush();
-
-                final ByteArrayEntity postBody = new ByteArrayEntity(baos.toByteArray());
-                method.setEntity(postBody);
-
-                final HttpResponse response = client.execute(method);
-
-                final StatusLine status = response.getStatusLine();
-                final int statusCode = status.getStatusCode();
-                if (Constants.IS_LOGGABLE)
-                {
-                    Log.v(Constants.LOG_TAG, String.format("Upload complete with status %d", Integer.valueOf(statusCode))); //$NON-NLS-1$
-                }
-
                 /*
-                 * 5xx status codes indicate a server error, so upload should be reattempted
+                 * GZIP the data to upload
                  */
-                if (statusCode >= 500 && statusCode <= 599)
+                byte[] data;
                 {
-                    return false;
-                }
-
-                return true;
-            }
-            catch (final UnsupportedEncodingException e)
-            {
-                if (Constants.IS_LOGGABLE)
-                {
-                    Log.w(Constants.LOG_TAG, "UnsupportedEncodingException", e); //$NON-NLS-1$
-                }
-                return false;
-            }
-            catch (final ClientProtocolException e)
-            {
-                if (Constants.IS_LOGGABLE)
-                {
-                    Log.w(Constants.LOG_TAG, "ClientProtocolException", e); //$NON-NLS-1$
-                }
-                return false;
-            }
-            catch (final IOException e)
-            {
-                if (Constants.IS_LOGGABLE)
-                {
-                    Log.w(Constants.LOG_TAG, "IOException", e); //$NON-NLS-1$
-                }
-                return false;
-            }
-            finally
-            {
-                if (null != gos)
-                {
+                    GZIPOutputStream gos = null;
                     try
                     {
-                        gos.close();
+                        final byte[] originalBytes = body.getBytes("UTF-8"); //$NON-NLS-1$
+                        final ByteArrayOutputStream baos = new ByteArrayOutputStream(originalBytes.length);
+                        gos = new GZIPOutputStream(baos);
+                        gos.write(originalBytes);
+                        gos.finish();
+                        gos.flush();
+
+                        data = baos.toByteArray();
+                    }
+                    catch (final UnsupportedEncodingException e)
+                    {
+                        if (Constants.IS_LOGGABLE)
+                        {
+                            Log.w(Constants.LOG_TAG, "UnsupportedEncodingException", e); //$NON-NLS-1$
+                        }
+                        return false;
                     }
                     catch (final IOException e)
                     {
                         if (Constants.IS_LOGGABLE)
                         {
-                            Log.w(Constants.LOG_TAG, "Caught exception", e); //$NON-NLS-1$
+                            Log.w(Constants.LOG_TAG, "IOException", e); //$NON-NLS-1$
+                        }
+                        return false;
+                    }
+                    finally
+                    {
+                        if (null != gos)
+                        {
+                            try
+                            {
+                                gos.close();
+                                gos = null;
+                            }
+                            catch (final IOException e)
+                            {
+                                if (Constants.IS_LOGGABLE)
+                                {
+                                    Log.w(Constants.LOG_TAG, "Caught exception", e); //$NON-NLS-1$
+                                }
+
+                                return false;
+                            }
+                        }
+                    }
+                }
+
+                HttpURLConnection connection = null;
+                try
+                {
+                    connection = (HttpURLConnection) new URL(url).openConnection();
+
+                    connection.setDoOutput(true); // sets POST method implicitly
+                    connection.setRequestProperty("Content-Type", "application/x-gzip"); //$NON-NLS-1$//$NON-NLS-2$
+                    connection.setFixedLengthStreamingMode(data.length);
+
+                    OutputStream stream = null;
+                    try
+                    {
+                        stream = connection.getOutputStream();
+
+                        stream.write(data);
+                    }
+                    finally
+                    {
+                        if (null != stream)
+                        {
+                            stream.flush();
+                            stream.close();
+                            stream = null;
+                        }
+                    }
+
+                    final int responseCode = connection.getResponseCode();
+                    if (Constants.IS_LOGGABLE)
+                    {
+                        Log.v(Constants.LOG_TAG, String.format("Upload complete with status %d", Integer.valueOf(responseCode))); //$NON-NLS-1$
+                    }
+
+                    /*
+                     * 5xx status codes indicate a server error, so upload should be reattempted
+                     */
+                    if (responseCode >= 500 && responseCode <= 599)
+                    {
+                        return false;
+                    }
+                }
+                catch (final MalformedURLException e)
+                {
+                    if (Constants.IS_LOGGABLE)
+                    {
+                        Log.w(Constants.LOG_TAG, "ClientProtocolException", e); //$NON-NLS-1$
+                    }
+
+                    return false;
+                }
+                catch (final IOException e)
+                {
+                    if (Constants.IS_LOGGABLE)
+                    {
+                        Log.w(Constants.LOG_TAG, "ClientProtocolException", e); //$NON-NLS-1$
+                    }
+
+                    return false;
+                }
+
+                finally
+                {
+                    if (null != connection)
+                    {
+                        connection.disconnect();
+                        connection = null;
+                    }
+                }
+            }
+            else
+            {
+                /*
+                 * Note: DefaultHttpClient appears to sometimes cause an OutOfMemory error. Although we've seen exceptions from
+                 * the wild, it isn't clear whether this is due to a bug in DefaultHttpClient or just a random error that has
+                 * occurred once or twice due to buggy devices.
+                 */
+                final DefaultHttpClient client = new DefaultHttpClient();
+                final HttpPost method = new HttpPost(url);
+                method.addHeader("Content-Type", "application/x-gzip"); //$NON-NLS-1$ //$NON-NLS-2$
+
+                GZIPOutputStream gos = null;
+                try
+                {
+                    final byte[] originalBytes = body.getBytes("UTF-8"); //$NON-NLS-1$
+                    final ByteArrayOutputStream baos = new ByteArrayOutputStream(originalBytes.length);
+                    gos = new GZIPOutputStream(baos);
+                    gos.write(originalBytes);
+                    gos.finish();
+                    gos.flush();
+
+                    final ByteArrayEntity postBody = new ByteArrayEntity(baos.toByteArray());
+                    method.setEntity(postBody);
+
+                    final HttpResponse response = client.execute(method);
+
+                    final StatusLine status = response.getStatusLine();
+                    final int statusCode = status.getStatusCode();
+                    if (Constants.IS_LOGGABLE)
+                    {
+                        Log.v(Constants.LOG_TAG, String.format("Upload complete with status %d", Integer.valueOf(statusCode))); //$NON-NLS-1$
+                    }
+
+                    /*
+                     * 5xx status codes indicate a server error, so upload should be reattempted
+                     */
+                    if (statusCode >= 500 && statusCode <= 599)
+                    {
+                        return false;
+                    }
+                }
+                catch (final UnsupportedEncodingException e)
+                {
+                    if (Constants.IS_LOGGABLE)
+                    {
+                        Log.w(Constants.LOG_TAG, "UnsupportedEncodingException", e); //$NON-NLS-1$
+                    }
+                    return false;
+                }
+                catch (final ClientProtocolException e)
+                {
+                    if (Constants.IS_LOGGABLE)
+                    {
+                        Log.w(Constants.LOG_TAG, "ClientProtocolException", e); //$NON-NLS-1$
+                    }
+                    return false;
+                }
+                catch (final IOException e)
+                {
+                    if (Constants.IS_LOGGABLE)
+                    {
+                        Log.w(Constants.LOG_TAG, "IOException", e); //$NON-NLS-1$
+                    }
+                    return false;
+                }
+                finally
+                {
+                    if (null != gos)
+                    {
+                        try
+                        {
+                            gos.close();
+                            gos = null;
+                        }
+                        catch (final IOException e)
+                        {
+                            if (Constants.IS_LOGGABLE)
+                            {
+                                Log.w(Constants.LOG_TAG, "Caught exception", e); //$NON-NLS-1$
+                            }
                         }
                     }
                 }
             }
+
+            return true;
         }
 
         /**
@@ -2109,15 +2970,15 @@ public final class LocalyticsSession
          *
          * @return A list of JSON objecs to upload to the server
          */
-        /* package */List<JSONObject> convertDatabaseToJson()
+        /* package */static List<JSONObject> convertDatabaseToJson(final Context context, final LocalyticsProvider provider, final String apiKey)
         {
             final List<JSONObject> result = new LinkedList<JSONObject>();
             Cursor cursor = null;
             try
             {
-                cursor = mProvider.query(UploadBlobsDbColumns.TABLE_NAME, null, null, null, null);
+                cursor = provider.query(UploadBlobsDbColumns.TABLE_NAME, null, null, null, null);
 
-                final long creationTime = getApiKeyCreationTime(mProvider, mApiKey);
+                final long creationTime = getApiKeyCreationTime(provider, apiKey);
 
                 final int idColumn = cursor.getColumnIndexOrThrow(UploadBlobsDbColumns._ID);
                 final int uuidColumn = cursor.getColumnIndexOrThrow(UploadBlobsDbColumns.UUID);
@@ -2131,20 +2992,20 @@ public final class LocalyticsSession
                         blobHeader.put(JsonObjects.BlobHeader.KEY_PERSISTENT_STORAGE_CREATION_TIME_SECONDS, creationTime);
                         blobHeader.put(JsonObjects.BlobHeader.KEY_SEQUENCE_NUMBER, cursor.getLong(idColumn));
                         blobHeader.put(JsonObjects.BlobHeader.KEY_UNIQUE_ID, cursor.getString(uuidColumn));
-                        blobHeader.put(JsonObjects.BlobHeader.KEY_ATTRIBUTES, getAttributesFromSession(mProvider, mApiKey, getSessionIdForBlobId(cursor.getLong(idColumn))));
+                        blobHeader.put(JsonObjects.BlobHeader.KEY_ATTRIBUTES, getAttributesFromSession(provider, apiKey, getSessionIdForBlobId(provider, cursor.getLong(idColumn))));
                         result.add(blobHeader);
 
                         Cursor blobEvents = null;
                         try
                         {
-                            blobEvents = mProvider.query(UploadBlobEventsDbColumns.TABLE_NAME, new String[]
+                            blobEvents = provider.query(UploadBlobEventsDbColumns.TABLE_NAME, new String[]
                                 { UploadBlobEventsDbColumns.EVENTS_KEY_REF }, String.format("%s = ?", UploadBlobEventsDbColumns.UPLOAD_BLOBS_KEY_REF), new String[] //$NON-NLS-1$
                                 { Long.toString(cursor.getLong(idColumn)) }, UploadBlobEventsDbColumns.EVENTS_KEY_REF);
 
                             final int eventIdColumn = blobEvents.getColumnIndexOrThrow(UploadBlobEventsDbColumns.EVENTS_KEY_REF);
                             while (blobEvents.moveToNext())
                             {
-                                result.add(convertEventToJson(mProvider, mContext, blobEvents.getLong(eventIdColumn), cursor.getLong(idColumn), mApiKey));
+                                result.add(convertEventToJson(provider, context, blobEvents.getLong(eventIdColumn), cursor.getLong(idColumn), apiKey));
                             }
                         }
                         finally
@@ -2169,6 +3030,7 @@ public final class LocalyticsSession
                 if (cursor != null)
                 {
                     cursor.close();
+                    cursor = null;
                 }
             }
 
@@ -2254,6 +3116,7 @@ public final class LocalyticsSession
                         if (null != eventCursor)
                         {
                             eventCursor.close();
+                            eventCursor = null;
                         }
                     }
 
@@ -2266,6 +3129,7 @@ public final class LocalyticsSession
                 if (null != blobEvents)
                 {
                     blobEvents.close();
+                    blobEvents = null;
                 }
             }
 
@@ -2313,6 +3177,7 @@ public final class LocalyticsSession
                 if (null != cursor)
                 {
                     cursor.close();
+                    cursor = null;
                 }
             }
         }
@@ -2347,9 +3212,28 @@ public final class LocalyticsSession
                     result.put(JsonObjects.BlobHeader.Attributes.KEY_DEVICE_SERIAL_HASH, cursor.isNull(cursor.getColumnIndexOrThrow(SessionsDbColumns.DEVICE_SERIAL_NUMBER_HASH)) ? JSONObject.NULL
                             : cursor.getString(cursor.getColumnIndexOrThrow(SessionsDbColumns.DEVICE_SERIAL_NUMBER_HASH)));
                     result.put(JsonObjects.BlobHeader.Attributes.KEY_DEVICE_SDK_LEVEL, cursor.getString(cursor.getColumnIndexOrThrow(SessionsDbColumns.ANDROID_SDK)));
+                    if (Constants.IS_DEVICE_IDENTIFIER_UPLOADED)
+                    {
+                        result.put(JsonObjects.BlobHeader.Attributes.KEY_DEVICE_TELEPHONY_ID, cursor.isNull(cursor.getColumnIndexOrThrow(SessionsDbColumns.DEVICE_TELEPHONY_ID)) ? JSONObject.NULL
+                                : cursor.getString(cursor.getColumnIndexOrThrow(SessionsDbColumns.DEVICE_TELEPHONY_ID)));
+                    }
+                    else
+                    {
+                        result.put(JsonObjects.BlobHeader.Attributes.KEY_DEVICE_TELEPHONY_ID_HASH, cursor.isNull(cursor.getColumnIndexOrThrow(SessionsDbColumns.DEVICE_TELEPHONY_ID_HASH)) ? JSONObject.NULL
+                                : cursor.getString(cursor.getColumnIndexOrThrow(SessionsDbColumns.DEVICE_TELEPHONY_ID_HASH)));
+                    }
+                    result.put(JsonObjects.BlobHeader.Attributes.KEY_DEVICE_WIFI_MAC_HASH, cursor.isNull(cursor.getColumnIndexOrThrow(SessionsDbColumns.DEVICE_WIFI_MAC_HASH)) ? JSONObject.NULL
+                            : cursor.getString(cursor.getColumnIndexOrThrow(SessionsDbColumns.DEVICE_WIFI_MAC_HASH)));
                     result.put(JsonObjects.BlobHeader.Attributes.KEY_LOCALYTICS_API_KEY, apiKey);
                     result.put(JsonObjects.BlobHeader.Attributes.KEY_LOCALYTICS_CLIENT_LIBRARY_VERSION, cursor.getString(cursor.getColumnIndexOrThrow(SessionsDbColumns.LOCALYTICS_LIBRARY_VERSION)));
                     result.put(JsonObjects.BlobHeader.Attributes.KEY_LOCALYTICS_DATA_TYPE, JsonObjects.BlobHeader.Attributes.VALUE_DATA_TYPE);
+
+                    // This would only be null after an upgrade from an earlier version of the Localytics library
+                    final String installationID = cursor.getString(cursor.getColumnIndexOrThrow(SessionsDbColumns.LOCALYTICS_INSTALLATION_ID));
+                    if (null != installationID)
+                    {
+                        result.put(JsonObjects.BlobHeader.Attributes.KEY_LOCALYTICS_INSTALLATION_ID, installationID);
+                    }
                     result.put(JsonObjects.BlobHeader.Attributes.KEY_LOCALE_COUNTRY, cursor.getString(cursor.getColumnIndexOrThrow(SessionsDbColumns.LOCALE_COUNTRY)));
                     result.put(JsonObjects.BlobHeader.Attributes.KEY_LOCALE_LANGUAGE, cursor.getString(cursor.getColumnIndexOrThrow(SessionsDbColumns.LOCALE_LANGUAGE)));
                     result.put(JsonObjects.BlobHeader.Attributes.KEY_NETWORK_CARRIER, cursor.getString(cursor.getColumnIndexOrThrow(SessionsDbColumns.NETWORK_CARRIER)));
@@ -2365,6 +3249,7 @@ public final class LocalyticsSession
                 if (null != cursor)
                 {
                     cursor.close();
+                    cursor = null;
                 }
             }
         }
@@ -2414,6 +3299,50 @@ public final class LocalyticsSession
                          * Both the database and the web service use 1-based indexing.
                          */
                         result.put(JsonObjects.SessionOpen.KEY_COUNT, sessionId);
+
+                        /*
+                         * Get the custom dimensions from the attributes table
+                         */
+                        Cursor attributesCursor = null;
+                        try
+                        {
+                            attributesCursor = provider.query(AttributesDbColumns.TABLE_NAME, null, String.format("%s = ?", AttributesDbColumns.EVENTS_KEY_REF), new String[] { Long.toString(eventId) }, null); //$NON-NLS-1$
+
+                            final int keyColumn = attributesCursor.getColumnIndexOrThrow(AttributesDbColumns.ATTRIBUTE_KEY);
+                            final int valueColumn = attributesCursor.getColumnIndexOrThrow(AttributesDbColumns.ATTRIBUTE_VALUE);
+                            while (attributesCursor.moveToNext())
+                            {
+                                final String key = attributesCursor.getString(keyColumn);
+                                final String value = attributesCursor.getString(valueColumn);
+
+                                if (AttributesDbColumns.ATTRIBUTE_CUSTOM_DIMENSION_1.equals(key))
+                                {
+                                    result.put(JsonObjects.SessionOpen.KEY_CUSTOM_DIMENSION_1, value);
+                                }
+                                else if (AttributesDbColumns.ATTRIBUTE_CUSTOM_DIMENSION_2.equals(key))
+                                {
+                                    result.put(JsonObjects.SessionOpen.KEY_CUSTOM_DIMENSION_2, value);
+
+                                }
+                                else if (AttributesDbColumns.ATTRIBUTE_CUSTOM_DIMENSION_3.equals(key))
+                                {
+                                    result.put(JsonObjects.SessionOpen.KEY_CUSTOM_DIMENSION_3, value);
+
+                                }
+                                else if (AttributesDbColumns.ATTRIBUTE_CUSTOM_DIMENSION_4.equals(key))
+                                {
+                                    result.put(JsonObjects.SessionOpen.KEY_CUSTOM_DIMENSION_4, value);
+                                }
+                            }
+                        }
+                        finally
+                        {
+                            if (null != attributesCursor)
+                            {
+                                attributesCursor.close();
+                                attributesCursor = null;
+                            }
+                        }
                     }
                     else if (CLOSE_EVENT.equals(eventName))
                     {
@@ -2481,6 +3410,50 @@ public final class LocalyticsSession
                             {
                                 eventHistoryCursor.close();
                                 eventHistoryCursor = null;
+                            }
+                        }
+
+                        /*
+                         * Get the custom dimensions from the attributes table
+                         */
+                        Cursor attributesCursor = null;
+                        try
+                        {
+                            attributesCursor = provider.query(AttributesDbColumns.TABLE_NAME, null, String.format("%s = ?", AttributesDbColumns.EVENTS_KEY_REF), new String[] { Long.toString(eventId) }, null); //$NON-NLS-1$
+
+                            final int keyColumn = attributesCursor.getColumnIndexOrThrow(AttributesDbColumns.ATTRIBUTE_KEY);
+                            final int valueColumn = attributesCursor.getColumnIndexOrThrow(AttributesDbColumns.ATTRIBUTE_VALUE);
+                            while (attributesCursor.moveToNext())
+                            {
+                                final String key = attributesCursor.getString(keyColumn);
+                                final String value = attributesCursor.getString(valueColumn);
+
+                                if (AttributesDbColumns.ATTRIBUTE_CUSTOM_DIMENSION_1.equals(key))
+                                {
+                                    result.put(JsonObjects.SessionOpen.KEY_CUSTOM_DIMENSION_1, value);
+                                }
+                                else if (AttributesDbColumns.ATTRIBUTE_CUSTOM_DIMENSION_2.equals(key))
+                                {
+                                    result.put(JsonObjects.SessionOpen.KEY_CUSTOM_DIMENSION_2, value);
+
+                                }
+                                else if (AttributesDbColumns.ATTRIBUTE_CUSTOM_DIMENSION_3.equals(key))
+                                {
+                                    result.put(JsonObjects.SessionOpen.KEY_CUSTOM_DIMENSION_3, value);
+
+                                }
+                                else if (AttributesDbColumns.ATTRIBUTE_CUSTOM_DIMENSION_4.equals(key))
+                                {
+                                    result.put(JsonObjects.SessionOpen.KEY_CUSTOM_DIMENSION_4, value);
+                                }
+                            }
+                        }
+                        finally
+                        {
+                            if (null != attributesCursor)
+                            {
+                                attributesCursor.close();
+                                attributesCursor = null;
                             }
                         }
                     }
@@ -2564,7 +3537,51 @@ public final class LocalyticsSession
                         result.put(JsonObjects.SessionEvent.KEY_SESSION_UUID, sessionUuid);
                         result.put(JsonObjects.SessionEvent.KEY_NAME, eventName.substring(context.getPackageName().length() + 1, eventName.length()));
 
-                        final JSONObject attributes = convertAttributesToJson(provider, eventId);
+                        /*
+                         * Get the custom dimensions from the attributes table
+                         */
+                        Cursor attributesCursor = null;
+                        try
+                        {
+                            attributesCursor = provider.query(AttributesDbColumns.TABLE_NAME, null, String.format("%s = ?", AttributesDbColumns.EVENTS_KEY_REF), new String[] { Long.toString(eventId) }, null); //$NON-NLS-1$
+
+                            final int keyColumn = attributesCursor.getColumnIndexOrThrow(AttributesDbColumns.ATTRIBUTE_KEY);
+                            final int valueColumn = attributesCursor.getColumnIndexOrThrow(AttributesDbColumns.ATTRIBUTE_VALUE);
+                            while (attributesCursor.moveToNext())
+                            {
+                                final String key = attributesCursor.getString(keyColumn);
+                                final String value = attributesCursor.getString(valueColumn);
+
+                                if (AttributesDbColumns.ATTRIBUTE_CUSTOM_DIMENSION_1.equals(key))
+                                {
+                                    result.put(JsonObjects.SessionOpen.KEY_CUSTOM_DIMENSION_1, value);
+                                }
+                                else if (AttributesDbColumns.ATTRIBUTE_CUSTOM_DIMENSION_2.equals(key))
+                                {
+                                    result.put(JsonObjects.SessionOpen.KEY_CUSTOM_DIMENSION_2, value);
+
+                                }
+                                else if (AttributesDbColumns.ATTRIBUTE_CUSTOM_DIMENSION_3.equals(key))
+                                {
+                                    result.put(JsonObjects.SessionOpen.KEY_CUSTOM_DIMENSION_3, value);
+
+                                }
+                                else if (AttributesDbColumns.ATTRIBUTE_CUSTOM_DIMENSION_4.equals(key))
+                                {
+                                    result.put(JsonObjects.SessionOpen.KEY_CUSTOM_DIMENSION_4, value);
+                                }
+                            }
+                        }
+                        finally
+                        {
+                            if (null != attributesCursor)
+                            {
+                                attributesCursor.close();
+                                attributesCursor = null;
+                            }
+                        }
+
+                        final JSONObject attributes = convertAttributesToJson(provider, context, eventId);
 
                         if (null != attributes)
                         {
@@ -2585,6 +3602,7 @@ public final class LocalyticsSession
                 if (null != cursor)
                 {
                     cursor.close();
+                    cursor = null;
                 }
             }
 
@@ -2621,6 +3639,7 @@ public final class LocalyticsSession
                 if (null != cursor)
                 {
                     cursor.close();
+                    cursor = null;
                 }
             }
         }
@@ -2655,6 +3674,7 @@ public final class LocalyticsSession
                 if (null != cursor)
                 {
                     cursor.close();
+                    cursor = null;
                 }
             }
         }
@@ -2689,6 +3709,7 @@ public final class LocalyticsSession
                 if (null != cursor)
                 {
                     cursor.close();
+                    cursor = null;
                 }
             }
         }
@@ -2697,17 +3718,18 @@ public final class LocalyticsSession
          * Private helper to convert an event's attributes into a {@link JSONObject} representation.
          *
          * @param provider Localytics database instance. Cannot be null.
+         * @param context Application context. Cannot be null.
          * @param eventId {@link EventsDbColumns#_ID} of the event whose attributes are to be loaded.
          * @return {@link JSONObject} representing the attributes of the event. The order of attributes is undefined and may
          *         change from call to call of this method. If the event has no attributes, returns null.
          * @throws JSONException if an error occurs converting the attributes to JSON
          */
-        /* package */static JSONObject convertAttributesToJson(final LocalyticsProvider provider, final long eventId) throws JSONException
+        /* package */static JSONObject convertAttributesToJson(final LocalyticsProvider provider, final Context context, final long eventId) throws JSONException
         {
             Cursor cursor = null;
             try
             {
-                cursor = provider.query(AttributesDbColumns.TABLE_NAME, null, String.format("%s = ?", AttributesDbColumns.EVENTS_KEY_REF), new String[] { Long.toString(eventId) }, null); //$NON-NLS-1$
+                cursor = provider.query(AttributesDbColumns.TABLE_NAME, null, String.format("%s = ? AND %s != ? AND %s != ? AND %s != ? AND %s != ?", AttributesDbColumns.EVENTS_KEY_REF, AttributesDbColumns.ATTRIBUTE_KEY, AttributesDbColumns.ATTRIBUTE_KEY, AttributesDbColumns.ATTRIBUTE_KEY, AttributesDbColumns.ATTRIBUTE_KEY), new String[] { Long.toString(eventId), AttributesDbColumns.ATTRIBUTE_CUSTOM_DIMENSION_1, AttributesDbColumns.ATTRIBUTE_CUSTOM_DIMENSION_2, AttributesDbColumns.ATTRIBUTE_CUSTOM_DIMENSION_3, AttributesDbColumns.ATTRIBUTE_CUSTOM_DIMENSION_4 }, null); //$NON-NLS-1$
 
                 if (cursor.getCount() == 0)
                 {
@@ -2720,7 +3742,10 @@ public final class LocalyticsSession
                 final int valueColumn = cursor.getColumnIndexOrThrow(AttributesDbColumns.ATTRIBUTE_VALUE);
                 while (cursor.moveToNext())
                 {
-                    attributes.put(cursor.getString(keyColumn), cursor.getString(valueColumn));
+                    final String key = cursor.getString(keyColumn);
+                    final String value = cursor.getString(valueColumn);
+
+                    attributes.put(key.substring(context.getPackageName().length() + 1, key.length()), value);
                 }
 
                 return attributes;
@@ -2730,6 +3755,7 @@ public final class LocalyticsSession
                 if (null != cursor)
                 {
                     cursor.close();
+                    cursor = null;
                 }
             }
         }
@@ -2740,7 +3766,7 @@ public final class LocalyticsSession
          * @param blobId {@link UploadBlobsDbColumns#_ID} of the upload blob.
          * @return id of the parent session.
          */
-        /* package */long getSessionIdForBlobId(final long blobId)
+        /* package */static long getSessionIdForBlobId(final LocalyticsProvider provider, final long blobId)
         {
             /*
              * This implementation needs to walk up the tree of database elements.
@@ -2751,7 +3777,7 @@ public final class LocalyticsSession
                 Cursor cursor = null;
                 try
                 {
-                    cursor = mProvider.query(UploadBlobEventsDbColumns.TABLE_NAME, new String[]
+                    cursor = provider.query(UploadBlobEventsDbColumns.TABLE_NAME, new String[]
                         { UploadBlobEventsDbColumns.EVENTS_KEY_REF }, String.format("%s = ?", UploadBlobEventsDbColumns.UPLOAD_BLOBS_KEY_REF), new String[] //$NON-NLS-1$
                         { Long.toString(blobId) }, null);
 
@@ -2772,6 +3798,7 @@ public final class LocalyticsSession
                     if (null != cursor)
                     {
                         cursor.close();
+                        cursor = null;
                     }
                 }
             }
@@ -2781,7 +3808,7 @@ public final class LocalyticsSession
                 Cursor cursor = null;
                 try
                 {
-                    cursor = mProvider.query(EventsDbColumns.TABLE_NAME, new String[]
+                    cursor = provider.query(EventsDbColumns.TABLE_NAME, new String[]
                         { EventsDbColumns.SESSION_KEY_REF }, String.format("%s = ?", EventsDbColumns._ID), new String[] //$NON-NLS-1$
                         { Long.toString(eventId) }, null);
 
@@ -2802,6 +3829,7 @@ public final class LocalyticsSession
                     if (null != cursor)
                     {
                         cursor.close();
+                        cursor = null;
                     }
                 }
             }
