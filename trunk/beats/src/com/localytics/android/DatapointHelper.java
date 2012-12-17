@@ -1,6 +1,6 @@
 //@formatter:off
 /**
- * DatapointHelper.java Copyright (C) 2011 Char Software Inc., DBA Localytics This code is provided under the Localytics Modified
+ * DatapointHelper.java Copyright (C) 2012 Char Software Inc., DBA Localytics. This code is provided under the Localytics Modified
  * BSD License. A copy of this license has been distributed in a file called LICENSE with this source code. Please visit
  * www.localytics.com for more information.
  */
@@ -13,6 +13,8 @@ import android.content.Context;
 import android.content.pm.PackageManager;
 import android.net.ConnectivityManager;
 import android.net.NetworkInfo;
+import android.net.wifi.WifiInfo;
+import android.net.wifi.WifiManager;
 import android.os.Build;
 import android.telephony.TelephonyManager;
 import android.util.Log;
@@ -43,6 +45,24 @@ import java.security.NoSuchAlgorithmException;
      * The path to the device_id file in previous versions of the Localytics library
      */
     private static final String LEGACY_DEVICE_ID_FILE = "/localytics/device_id"; //$NON-NLS-1$
+
+    /**
+     * Cached array of the String class, for reflection
+     */
+    private static final Class<?>[] STRING_CLASS_ARRAY = new Class<?>[]
+        { String.class };
+
+    /**
+     * Cached array of the Android Wi-Fi hardware constant.
+     */
+    private static final Object[] HARDWARE_WIFI = new Object[]
+        { "android.hardware.wifi" }; //$NON-NLS-1$
+
+    /**
+     * Cached array of the Android Wi-Fi hardware constant.
+     */
+    private static final Object[] HARDWARE_TELEPHONY = new Object[]
+        { "android.hardware.telephony" }; //$NON-NLS-1$
 
     /**
      * Private constructor prevents instantiation
@@ -148,7 +168,7 @@ import java.security.NoSuchAlgorithmException;
             return null;
         }
 
-        return getSha256(androidId);
+        return getSha256_buggy(androidId);
     }
 
     /**
@@ -190,7 +210,7 @@ import java.security.NoSuchAlgorithmException;
             return null;
         }
 
-        return getSha256(serialNumber);
+        return getSha256_buggy(serialNumber);
     }
 
     /**
@@ -205,10 +225,10 @@ import java.security.NoSuchAlgorithmException;
      */
     public static String getTelephonyDeviceIdOrNull(final Context context)
     {
-        if (Constants.CURRENT_API_LEVEL >= 8)
+        if (Constants.CURRENT_API_LEVEL >= 7)
         {
-            final Boolean hasTelephony = ReflectionUtils.tryInvokeInstance(context.getPackageManager(), "hasSystemFeature", new Class<?>[] { String.class }, new Object[] { "android.hardware.telephony" }); //$NON-NLS-1$//$NON-NLS-2$
 
+            final Boolean hasTelephony = ReflectionUtils.tryInvokeInstance(context.getPackageManager(), "hasSystemFeature", STRING_CLASS_ARRAY, HARDWARE_TELEPHONY); //$NON-NLS-1$
             if (!hasTelephony.booleanValue())
             {
                 if (Constants.IS_LOGGABLE)
@@ -262,7 +282,69 @@ import java.security.NoSuchAlgorithmException;
             return null;
         }
 
-        return getSha256(id);
+        return getSha256_buggy(id);
+    }
+
+    /**
+     * Gets the device's Wi-Fi MAC address.
+     * <p>
+     * Note: this method will return null if {@link permission#ACCESS_WIFI_STATE} is not available. This method will also return
+     * null on devices that do not have Wi-Fi. Even if the application has {@link permission#ACCESS_WIFI_STATE} and the device
+     * does have Wi-Fi hardware, this method may still return null if Wi-Fi is disabled or not associated with an access point.
+     *
+     * @param context The context used to access the Wi-Fi state.
+     * @return A SHA-256 of the Wi-Fi MAC address. Null if a MAC is not available, or if {@link permission#ACCESS_WIFI_STATE} is
+     *         not available.
+     */
+    public static String getWifiMacHashOrNull(final Context context)
+    {
+        if (Constants.CURRENT_API_LEVEL >= 8)
+        {
+            final Boolean hasWifi = ReflectionUtils.tryInvokeInstance(context.getPackageManager(), "hasSystemFeature", STRING_CLASS_ARRAY, HARDWARE_WIFI); //$NON-NLS-1$
+
+            if (!hasWifi.booleanValue())
+            {
+                if (Constants.IS_LOGGABLE)
+                {
+                    Log.i(Constants.LOG_TAG, "Device does not have Wi-Fi; cannot read Wi-Fi MAC"); //$NON-NLS-1$
+                }
+
+                return null;
+            }
+        }
+
+        /*
+         * Most applications using the Localytics library probably shouldn't have Wi-Fi permissions. This is primarily for
+         * customers who *really* need to identify devices.
+         */
+        String id = null;
+        if (context.getPackageManager().checkPermission(permission.ACCESS_WIFI_STATE, context.getPackageName()) == PackageManager.PERMISSION_GRANTED)
+        {
+            final WifiManager manager = (WifiManager) context.getSystemService(Context.WIFI_SERVICE);
+            final WifiInfo info = manager.getConnectionInfo();
+            if (null != info)
+            {
+                id = info.getMacAddress();
+            }
+        }
+        else
+        {
+            if (Constants.IS_LOGGABLE)
+            {
+                /*
+                 * Yes, this log message is different from the one that reads telephony ID. MAC address is less important than
+                 * telephony ID and most applications probably don't need the ACCESS_WIFI_STATE permission.
+                 */
+                Log.i(Constants.LOG_TAG, "Application does not have permission ACCESS_WIFI_STATE; determining MAC address is not possible."); //$NON-NLS-1$
+            }
+        }
+
+        if (null == id)
+        {
+            return null;
+        }
+
+        return getSha256_buggy(id);
     }
 
     /**
@@ -274,19 +356,33 @@ import java.security.NoSuchAlgorithmException;
      */
     public static String getNetworkType(final Context context, final TelephonyManager telephonyManager)
     {
-        if (context.getPackageManager().checkPermission(permission.ACCESS_WIFI_STATE, context.getPackageName()) == PackageManager.PERMISSION_GRANTED)
+        try
         {
-            final NetworkInfo wifiInfo = ((ConnectivityManager) context.getSystemService(Context.CONNECTIVITY_SERVICE)).getNetworkInfo(ConnectivityManager.TYPE_WIFI);
-            if (wifiInfo != null && wifiInfo.isConnectedOrConnecting())
+            if (context.getPackageManager().checkPermission(permission.ACCESS_WIFI_STATE, context.getPackageName()) == PackageManager.PERMISSION_GRANTED)
             {
-                return "wifi"; //$NON-NLS-1$
+                final NetworkInfo wifiInfo = ((ConnectivityManager) context.getSystemService(Context.CONNECTIVITY_SERVICE)).getNetworkInfo(ConnectivityManager.TYPE_WIFI);
+                if (null != wifiInfo && wifiInfo.isConnectedOrConnecting())
+                {
+                    return "wifi"; //$NON-NLS-1$
+                }
+            }
+            else
+            {
+                if (Constants.IS_LOGGABLE)
+                {
+                    Log.w(Constants.LOG_TAG, "Application does not have one more more of the following permissions: ACCESS_WIFI_STATE. Determining Wi-Fi connectivity is unavailable"); //$NON-NLS-1$
+                }
             }
         }
-        else
+        catch (final SecurityException e)
         {
+            /*
+             * Although the documentation doesn't declare it, sometimes the ConnectivityService will throw an exception for
+             * permission ACCESS_NETWORK_STATE
+             */
             if (Constants.IS_LOGGABLE)
             {
-                Log.w(Constants.LOG_TAG, "Application does not have permission ACCESS_WIFI_STATE; determining Wi-Fi connectivity is unavailable"); //$NON-NLS-1$
+                Log.w(Constants.LOG_TAG, "Application does not have the permission ACCESS_NETWORK_STATE. Determining Wi-Fi connectivity is unavailable", e); //$NON-NLS-1$
             }
         }
 
@@ -337,7 +433,7 @@ import java.security.NoSuchAlgorithmException;
             /*
              * If there is no versionName in the Android Manifest, the versionName will be null.
              */
-            if (versionName == null)
+            if (null == versionName)
             {
                 if (Constants.IS_LOGGABLE)
                 {
@@ -359,14 +455,18 @@ import java.security.NoSuchAlgorithmException;
     }
 
     /**
-     * Helper method to generate a SHA-256 hash of a given String
+     * Helper method to generate a SHA-256 hash of a given String.
+     * <p>
+     * Note: This implementation contains a minor bug. The returned value may be shorter than expected, because it will drop any
+     * leading zeros on the front of the SHA-256 string. This bug cannot be fixed because the server may have already stored the
+     * truncated SHA-256 and changing this will cause a mismatch.
      *
      * @param string String to hash. Cannot be null.
      * @return hashed version of the string using SHA-256.
      */
-    /* package */static String getSha256(final String string)
+    /* package */static String getSha256_buggy(final String string)
     {
-        if (Constants.ENABLE_PARAMETER_CHECKING)
+        if (Constants.IS_PARAMETER_CHECKING_ENABLED)
         {
             if (null == string)
             {

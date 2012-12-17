@@ -1,3 +1,11 @@
+// @formatter:off
+/*
+ * LocalyticsProvider.java Copyright (C) 2012 Char Software Inc., DBA Localytics. This code is provided under the Localytics
+ * Modified BSD License. A copy of this license has been distributed in a file called LICENSE with this source code. Please visit
+ * www.localytics.com for more information.
+ */
+// @formatter:on
+
 package com.localytics.android;
 
 import android.content.ContentValues;
@@ -46,9 +54,12 @@ import java.util.Set;
      * <li>1: Initial version</li>
      * <li>2: No format changes--just deleting bad data stranded in the database</li>
      * <li>3: No format changes--just deleting bad data stranded in the database</li>
+     * <li>4: Add {@link SessionsDbColumns#LOCALYTICS_INSTALLATION_ID}</li>
+     * <li>5: Add {@link SessionsDbColumns#DEVICE_WIFI_MAC_HASH}</li>
+     * <li>5: Change attributes to have a package name prefix to allow for Localytics internal attributes</li>
      * </ol>
      */
-    private static final int DATABASE_VERSION = 3;
+    private static final int DATABASE_VERSION = 5;
 
     /**
      * Singleton instance of the {@link LocalyticsProvider}. Lazily initialized via {@link #getInstance(Context, String)}.
@@ -62,6 +73,11 @@ import java.util.Set;
      * Fun fact: Object[0] is more efficient that Object for an intrinsic lock
      */
     private static final Object[] sLocalyticsProviderIntrinsicLock = new Object[0];
+
+    /**
+     * Projection map for {@link BaseColumns#_COUNT}.
+     */
+    private static final Map<String, String> sCountProjectionMap = Collections.unmodifiableMap(getCountProjectionMap());
 
     /**
      * Unmodifiable set of valid table names.
@@ -92,7 +108,7 @@ import java.util.Set;
          * contexts such as RenamingDelegatingContext.
          */
 
-        if (Constants.ENABLE_PARAMETER_CHECKING)
+        if (Constants.IS_PARAMETER_CHECKING_ENABLED)
         {
             if (null == context)
             {
@@ -139,7 +155,7 @@ import java.util.Set;
          * multiple keys may have 2 or 3, so the risk of a collision there is also very low.
          */
 
-        mDb = new DatabaseHelper(context, String.format(DATABASE_FILE, DatapointHelper.getSha256(apiKey)), DATABASE_VERSION).getWritableDatabase();
+        mDb = new DatabaseHelper(context, String.format(DATABASE_FILE, DatapointHelper.getSha256_buggy(apiKey)), DATABASE_VERSION).getWritableDatabase();
     }
 
     /**
@@ -155,7 +171,7 @@ import java.util.Set;
      */
     public long insert(final String tableName, final ContentValues values)
     {
-        if (Constants.ENABLE_PARAMETER_CHECKING)
+        if (Constants.IS_PARAMETER_CHECKING_ENABLED)
         {
             if (!isValidTable(tableName))
             {
@@ -199,7 +215,7 @@ import java.util.Set;
      */
     public Cursor query(final String tableName, final String[] projection, final String selection, final String[] selectionArgs, final String sortOrder)
     {
-        if (Constants.ENABLE_PARAMETER_CHECKING)
+        if (Constants.IS_PARAMETER_CHECKING_ENABLED)
         {
             if (!isValidTable(tableName))
             {
@@ -214,6 +230,11 @@ import java.util.Set;
 
         final SQLiteQueryBuilder qb = new SQLiteQueryBuilder();
         qb.setTables(tableName);
+
+        if (projection != null && 1 == projection.length && BaseColumns._COUNT.equals(projection[0]))
+        {
+            qb.setProjectionMap(sCountProjectionMap);
+        }
 
         final Cursor result = qb.query(mDb, projection, selection, selectionArgs, null, null, sortOrder);
 
@@ -241,7 +262,7 @@ import java.util.Set;
      */
     public int update(final String tableName, final ContentValues values, final String selection, final String[] selectionArgs)
     {
-        if (Constants.ENABLE_PARAMETER_CHECKING)
+        if (Constants.IS_PARAMETER_CHECKING_ENABLED)
         {
             if (!isValidTable(tableName))
             {
@@ -271,7 +292,7 @@ import java.util.Set;
      */
     public int delete(final String tableName, final String selection, final String[] selectionArgs)
     {
-        if (Constants.ENABLE_PARAMETER_CHECKING)
+        if (Constants.IS_PARAMETER_CHECKING_ENABLED)
         {
             if (!isValidTable(tableName))
             {
@@ -317,7 +338,7 @@ import java.util.Set;
      */
     public void runBatchTransaction(final Runnable runnable)
     {
-        if (Constants.ENABLE_PARAMETER_CHECKING)
+        if (Constants.IS_PARAMETER_CHECKING_ENABLED)
         {
             if (null == runnable)
             {
@@ -336,6 +357,7 @@ import java.util.Set;
             mDb.endTransaction();
         }
     }
+
     /**
      * Closes the LocalyticsProvider object. Normally the provider is a long-lived object and should not be closed during normal
      * application use. This method is intended for unit testing purposes only, where a lot of temporary provider objects are
@@ -364,7 +386,6 @@ import java.util.Set;
         mDb.close();
     }
 
-
     /**
      * Private helper to test whether a given table name is valid
      *
@@ -378,12 +399,7 @@ import java.util.Set;
             return false;
         }
 
-        if (!sValidTables.contains(table))
-        {
-            return false;
-        }
-
-        return true;
+        return sValidTables.contains(table);
     }
 
     /**
@@ -407,6 +423,17 @@ import java.util.Set;
     }
 
     /**
+     * @return Projection map for {@link BaseColumns#_COUNT}.
+     */
+    private static HashMap<String, String> getCountProjectionMap()
+    {
+        final HashMap<String, String> temp = new HashMap<String, String>();
+        temp.put(BaseColumns._COUNT, "COUNT(*)"); //$NON-NLS-1$
+
+        return temp;
+    }
+
+    /**
      * Private helper that deletes files from older versions of the Localytics library.
      * <p>
      * Note: This is a private method that is only made package-accessible for unit testing.
@@ -416,7 +443,7 @@ import java.util.Set;
      */
     /* package */static void deleteOldFiles(final Context context)
     {
-        if (Constants.ENABLE_PARAMETER_CHECKING)
+        if (Constants.IS_PARAMETER_CHECKING_ENABLED)
         {
             if (null == context)
             {
@@ -467,6 +494,11 @@ import java.util.Set;
         private static final String SQLITE_BOOLEAN_FALSE = "0"; //$NON-NLS-1$
 
         /**
+         * Application context
+         */
+        private final Context mContext;
+
+        /**
          * @param context Application context. Cannot be null.
          * @param name File name of the database. Cannot be null or empty. A database with this name will be opened in
          *            {@link Context#getDatabasePath(String)}.
@@ -475,6 +507,8 @@ import java.util.Set;
         public DatabaseHelper(final Context context, final String name, final int version)
         {
             super(context, name, null, version);
+
+            mContext = context;
         }
 
         /**
@@ -498,7 +532,7 @@ import java.util.Set;
             db.execSQL(String.format("CREATE TABLE %s (%s INTEGER PRIMARY KEY AUTOINCREMENT, %s TEXT UNIQUE NOT NULL, %s TEXT UNIQUE NOT NULL, %s INTEGER NOT NULL CHECK (%s >= 0), %s INTEGER NOT NULL CHECK(%s IN (%s, %s)));", ApiKeysDbColumns.TABLE_NAME, ApiKeysDbColumns._ID, ApiKeysDbColumns.API_KEY, ApiKeysDbColumns.UUID, ApiKeysDbColumns.CREATED_TIME, ApiKeysDbColumns.CREATED_TIME, ApiKeysDbColumns.OPT_OUT, ApiKeysDbColumns.OPT_OUT, SQLITE_BOOLEAN_FALSE, SQLITE_BOOLEAN_TRUE)); //$NON-NLS-1$
 
             // sessions table
-            db.execSQL(String.format("CREATE TABLE %s (%s INTEGER PRIMARY KEY AUTOINCREMENT, %s INTEGER REFERENCES %s(%s) NOT NULL, %s TEXT UNIQUE NOT NULL, %s INTEGER NOT NULL CHECK (%s >= 0), %s TEXT NOT NULL, %s TEXT NOT NULL, %s INTEGER NOT NULL, %s TEXT NOT NULL, %s TEXT NOT NULL, %s TEXT NOT NULL, %s TEXT NOT NULL, %s TEXT, %s TEXT, %s TEXT, %s TEXT NOT NULL, %s TEXT NOT NULL, %s TEXT, %s TEXT, %s TEXT, %s TEXT, %s TEXT, %s TEXT);", SessionsDbColumns.TABLE_NAME, SessionsDbColumns._ID, SessionsDbColumns.API_KEY_REF, ApiKeysDbColumns.TABLE_NAME, ApiKeysDbColumns._ID, SessionsDbColumns.UUID, SessionsDbColumns.SESSION_START_WALL_TIME, SessionsDbColumns.SESSION_START_WALL_TIME, SessionsDbColumns.LOCALYTICS_LIBRARY_VERSION, SessionsDbColumns.APP_VERSION, SessionsDbColumns.ANDROID_VERSION, SessionsDbColumns.ANDROID_SDK, SessionsDbColumns.DEVICE_MODEL, SessionsDbColumns.DEVICE_MANUFACTURER, SessionsDbColumns.DEVICE_ANDROID_ID_HASH, SessionsDbColumns.DEVICE_TELEPHONY_ID, SessionsDbColumns.DEVICE_TELEPHONY_ID_HASH, SessionsDbColumns.DEVICE_SERIAL_NUMBER_HASH, SessionsDbColumns.LOCALE_LANGUAGE, SessionsDbColumns.LOCALE_COUNTRY, SessionsDbColumns.NETWORK_CARRIER, SessionsDbColumns.NETWORK_COUNTRY, SessionsDbColumns.NETWORK_TYPE, SessionsDbColumns.DEVICE_COUNTRY, SessionsDbColumns.LATITUDE, SessionsDbColumns.LONGITUDE)); //$NON-NLS-1$
+            db.execSQL(String.format("CREATE TABLE %s (%s INTEGER PRIMARY KEY AUTOINCREMENT, %s INTEGER REFERENCES %s(%s) NOT NULL, %s TEXT UNIQUE NOT NULL, %s INTEGER NOT NULL CHECK (%s >= 0), %s TEXT NOT NULL, %s TEXT NOT NULL, %s TEXT NOT NULL, %s INTEGER NOT NULL, %s TEXT NOT NULL, %s TEXT NOT NULL, %s TEXT NOT NULL, %s TEXT NOT NULL, %s TEXT, %s TEXT, %s TEXT, %s TEXT, %s TEXT NOT NULL, %s TEXT NOT NULL, %s TEXT, %s TEXT, %s TEXT, %s TEXT, %s TEXT, %s TEXT);", SessionsDbColumns.TABLE_NAME, SessionsDbColumns._ID, SessionsDbColumns.API_KEY_REF, ApiKeysDbColumns.TABLE_NAME, ApiKeysDbColumns._ID, SessionsDbColumns.UUID, SessionsDbColumns.SESSION_START_WALL_TIME, SessionsDbColumns.SESSION_START_WALL_TIME, SessionsDbColumns.LOCALYTICS_LIBRARY_VERSION, SessionsDbColumns.LOCALYTICS_INSTALLATION_ID, SessionsDbColumns.APP_VERSION, SessionsDbColumns.ANDROID_VERSION, SessionsDbColumns.ANDROID_SDK, SessionsDbColumns.DEVICE_MODEL, SessionsDbColumns.DEVICE_MANUFACTURER, SessionsDbColumns.DEVICE_ANDROID_ID_HASH, SessionsDbColumns.DEVICE_TELEPHONY_ID, SessionsDbColumns.DEVICE_TELEPHONY_ID_HASH, SessionsDbColumns.DEVICE_SERIAL_NUMBER_HASH, SessionsDbColumns.DEVICE_WIFI_MAC_HASH, SessionsDbColumns.LOCALE_LANGUAGE, SessionsDbColumns.LOCALE_COUNTRY, SessionsDbColumns.NETWORK_CARRIER, SessionsDbColumns.NETWORK_COUNTRY, SessionsDbColumns.NETWORK_TYPE, SessionsDbColumns.DEVICE_COUNTRY, SessionsDbColumns.LATITUDE, SessionsDbColumns.LONGITUDE)); //$NON-NLS-1$
 
             // events table
             db.execSQL(String.format("CREATE TABLE %s (%s INTEGER PRIMARY KEY AUTOINCREMENT, %s INTEGER REFERENCES %s(%s) NOT NULL, %s TEXT UNIQUE NOT NULL, %s TEXT NOT NULL, %s INTEGER NOT NULL CHECK (%s >= 0), %s INTEGER NOT NULL CHECK (%s >= 0));", EventsDbColumns.TABLE_NAME, EventsDbColumns._ID, EventsDbColumns.SESSION_KEY_REF, SessionsDbColumns.TABLE_NAME, SessionsDbColumns._ID, EventsDbColumns.UUID, EventsDbColumns.EVENT_NAME, EventsDbColumns.REAL_TIME, EventsDbColumns.REAL_TIME, EventsDbColumns.WALL_TIME, EventsDbColumns.WALL_TIME)); //$NON-NLS-1$
@@ -557,7 +591,7 @@ import java.util.Set;
         public void onUpgrade(final SQLiteDatabase db, final int oldVersion, final int newVersion)
         {
             /*
-             * Delete all sessions in the datbase, in order to get the data back into a consistent state. This is necessary
+             * Delete all sessions in the database, in order to get the data back into a consistent state. This is necessary
              * because an Android bug that caused the database in older versions of the Localytics library to become corrupted.
              */
             if (oldVersion < 3)
@@ -569,8 +603,57 @@ import java.util.Set;
                 db.delete(EventsDbColumns.TABLE_NAME, null, null);
                 db.delete(SessionsDbColumns.TABLE_NAME, null, null);
             }
-        }
 
+            if (oldVersion < 4)
+            {
+                // if the table is upgraded, it won't have the NOT NULL constraint that is normally present when the table is
+                // freshly created
+                db.execSQL(String.format("ALTER TABLE %s ADD COLUMN %s TEXT;", SessionsDbColumns.TABLE_NAME, SessionsDbColumns.LOCALYTICS_INSTALLATION_ID)); //$NON-NLS-1$
+            }
+
+            if (oldVersion < 5)
+            {
+                db.execSQL(String.format("ALTER TABLE %s ADD COLUMN %s TEXT;", SessionsDbColumns.TABLE_NAME, SessionsDbColumns.DEVICE_WIFI_MAC_HASH)); //$NON-NLS-1$
+            }
+
+            if (oldVersion < 6)
+            {
+                Cursor attributesCursor = null;
+                try
+                {
+                    attributesCursor = db.query(AttributesDbColumns.TABLE_NAME, new String[]
+                        {
+                            AttributesDbColumns._ID,
+                            AttributesDbColumns.ATTRIBUTE_KEY }, null, null, null, null, null);
+
+                    final int idColumnIndex = attributesCursor.getColumnIndexOrThrow(AttributesDbColumns._ID);
+                    final int keyColumnIndex = attributesCursor.getColumnIndexOrThrow(AttributesDbColumns.ATTRIBUTE_KEY);
+
+                    final ContentValues tempValues = new ContentValues();
+                    final String whereClause = String.format("%s = ?", AttributesDbColumns._ID); //$NON-NLS-1$
+                    final String[] whereArgs = new String[1];
+
+                    attributesCursor.moveToPosition(-1);
+                    while (attributesCursor.moveToNext())
+                    {
+                        tempValues.put(AttributesDbColumns.ATTRIBUTE_KEY, String.format(AttributesDbColumns.ATTRIBUTE_FORMAT, mContext.getPackageName(), attributesCursor.getString(keyColumnIndex)));
+
+                        whereArgs[0] = Long.toString(attributesCursor.getLong(idColumnIndex));
+                        db.update(AttributesDbColumns.TABLE_NAME, tempValues, whereClause, whereArgs);
+
+                        tempValues.clear();
+                    }
+                }
+                finally
+                {
+                    if (null != attributesCursor)
+                    {
+                        attributesCursor.close();
+                        attributesCursor = null;
+                    }
+                }
+            }
+        }
         // @Override
         // public void onDowngrade(SQLiteDatabase db, int oldVersion, int newVersion)
         // {
@@ -687,6 +770,30 @@ import java.util.Set;
          */
         public static final String ATTRIBUTE_VALUE = "attribute_value"; //$NON-NLS-1$
 
+        /**
+         * Format string for attributes. The string is packagename:attribute name
+         */
+        /* package */static final String ATTRIBUTE_FORMAT = "%s:%s"; //$NON-NLS-1$
+
+        /**
+         * Format string for the custom dimension attribute
+         */
+        /* package */static final String ATTRIBUTE_CUSTOM_DIMENSION_1 = String.format(ATTRIBUTE_FORMAT, Constants.LOCALYTICS_PACKAGE_NAME, "custom_dimension_0"); //$NON-NLS-1$
+
+        /**
+         * Format string for the custom dimension attribute
+         */
+        /* package */static final String ATTRIBUTE_CUSTOM_DIMENSION_2 = String.format(ATTRIBUTE_FORMAT, Constants.LOCALYTICS_PACKAGE_NAME, "custom_dimension_1"); //$NON-NLS-1$
+
+        /**
+         * Format string for the custom dimension attribute
+         */
+        /* package */static final String ATTRIBUTE_CUSTOM_DIMENSION_3 = String.format(ATTRIBUTE_FORMAT, Constants.LOCALYTICS_PACKAGE_NAME, "custom_dimension_2"); //$NON-NLS-1$
+
+        /**
+         * Format string for the custom dimension attribute
+         */
+        /* package */static final String ATTRIBUTE_CUSTOM_DIMENSION_4 = String.format(ATTRIBUTE_FORMAT, Constants.LOCALYTICS_PACKAGE_NAME, "custom_dimension_3"); //$NON-NLS-1$
     }
 
     /**
@@ -892,6 +999,17 @@ import java.util.Set;
         public static final String LOCALYTICS_LIBRARY_VERSION = "localytics_library_version"; //$NON-NLS-1$
 
         /**
+         * Type {@code String}
+         * <p>
+         * Installation UUID
+         * <p>
+         * Constraints: This column cannot be null.
+         *
+         * @see ApiKeysDbColumns#UUID
+         */
+        public static final String LOCALYTICS_INSTALLATION_ID = "iu"; //$NON-NLS-1$
+
+        /**
          * TYPE: {@code String}
          * <p>
          * String representing the app's versionName
@@ -980,11 +1098,20 @@ import java.util.Set;
         /**
          * TYPE: {@code String}
          * <p>
-         * String representing a hash of the the serial number of the device. May be null for some telephony devices.
+         * String representing a hash of the serial number of the device. May be null for some telephony devices.
          * <p>
          * Constraints: None
          */
         public static final String DEVICE_SERIAL_NUMBER_HASH = "device_serial_number_hash"; //$NON-NLS-1$
+
+        /**
+         * TYPE: {@code String}
+         * <p>
+         * String representing a hash of the Wi-Fi MAC address of the device. May be null if Wi-Fi isn't available or is disabled.
+         * <p>
+         * Constraints: None
+         */
+        public static final String DEVICE_WIFI_MAC_HASH = "device_wifi_mac_hash"; //$NON-NLS-1$
 
         /**
          * TYPE: {@code String}

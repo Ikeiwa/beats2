@@ -1,8 +1,18 @@
+// @formatter:off
+/*
+ * JsonObjects.java Copyright (C) 2012 Char Software Inc., DBA Localytics. This code is provided under the Localytics
+ * Modified BSD License. A copy of this license has been distributed in a file called LICENSE with this source code. Please visit
+ * www.localytics.com for more information.
+ */
+// @formatter:on
+
 package com.localytics.android;
 
 import android.Manifest.permission;
 
 import org.json.JSONArray;
+
+import com.localytics.android.LocalyticsProvider.ApiKeysDbColumns;
 
 /**
  * Set of constants for building JSON objects that get sent to the Localytics web service.
@@ -171,6 +181,14 @@ import org.json.JSONArray;
             /**
              * Type: {@code String}
              * <p>
+             * SHA-256 hash of the device's Wi-Fi MAC address, if the device has Wi-Fi, the app has
+             * {@link permission#ACCESS_WIFI_STATE}, Wi-Fi is enabled. Otherwise null.
+             */
+            public static final String KEY_DEVICE_WIFI_MAC_HASH = "wmac"; //$NON-NLS-1$
+
+            /**
+             * Type: {@code String}
+             * <p>
              * Country for the device's current locale settings
              */
             public static final String KEY_LOCALE_COUNTRY = "dlc"; //$NON-NLS-1$
@@ -208,6 +226,15 @@ import org.json.JSONArray;
             public static final String KEY_LOCALYTICS_DATA_TYPE = "dt"; //$NON-NLS-1$
 
             /**
+             * Type {@code String}
+             * <p>
+             * Installation UUID
+             *
+             * @see ApiKeysDbColumns#UUID
+             */
+            public static final String KEY_LOCALYTICS_INSTALLATION_ID = "iu"; //$NON-NLS-1$
+
+            /**
              * Type: {@code String}
              * <p>
              * Network carrier of the device
@@ -223,6 +250,7 @@ import org.json.JSONArray;
             /**
              * @see #KEY_LOCALYTICS_DATA_TYPE
              */
+            @SuppressWarnings("hiding")
             public static final String VALUE_DATA_TYPE = "a"; //$NON-NLS-1$
 
             /**
@@ -283,6 +311,34 @@ import org.json.JSONArray;
          * Count for the number of sessions
          */
         public static final String KEY_COUNT = "nth"; //$NON-NLS-1$
+
+        /**
+         * Type: {@code String}
+         * <p>
+         * Optional first custom dimension.
+         */
+        public static final String KEY_CUSTOM_DIMENSION_1 = "c0"; //$NON-NLS-1$
+
+        /**
+         * Type: {@code String}
+         * <p>
+         * Optional second custom dimension. Can only exist if there is a first custom dimension.
+         */
+        public static final String KEY_CUSTOM_DIMENSION_2 = "c1"; //$NON-NLS-1$
+
+        /**
+         * Type: {@code String}
+         * <p>
+         * Optional third custom dimension. Can only exist if there is a second custom dimension.
+         */
+        public static final String KEY_CUSTOM_DIMENSION_3 = "c2"; //$NON-NLS-1$
+
+        /**
+         * Type: {@code String}
+         * <p>
+         * Optional fourth custom dimension. Can only exist if there is a third custom dimension.
+         */
+        public static final String KEY_CUSTOM_DIMENSION_4 = "c3"; //$NON-NLS-1$
     }
 
     /**
@@ -350,6 +406,34 @@ import org.json.JSONArray;
          * Epoch timestamp when the session was started in seconds.
          */
         public static final String KEY_WALL_TIME_SECONDS = "ct"; //$NON-NLS-1$
+
+        /**
+         * Type: {@code String}
+         * <p>
+         * Optional first custom dimension.
+         */
+        public static final String KEY_CUSTOM_DIMENSION_1 = "c0"; //$NON-NLS-1$
+
+        /**
+         * Type: {@code String}
+         * <p>
+         * Optional second custom dimension. Can only exist if there is a first custom dimension.
+         */
+        public static final String KEY_CUSTOM_DIMENSION_2 = "c1"; //$NON-NLS-1$
+
+        /**
+         * Type: {@code String}
+         * <p>
+         * Optional third custom dimension. Can only exist if there is a second custom dimension.
+         */
+        public static final String KEY_CUSTOM_DIMENSION_3 = "c2"; //$NON-NLS-1$
+
+        /**
+         * Type: {@code String}
+         * <p>
+         * Optional fourth custom dimension. Can only exist if there is a third custom dimension.
+         */
+        public static final String KEY_CUSTOM_DIMENSION_4 = "c3"; //$NON-NLS-1$
 
         /**
          * Data type for close events.
@@ -427,6 +511,34 @@ import org.json.JSONArray;
          * event. Otherwise the key will not exist, indicating the event had no attributes.
          */
         public static final String KEY_ATTRIBUTES = "attrs"; //$NON-NLS-1$
+
+        /**
+         * Type: {@code String}
+         * <p>
+         * Optional first custom dimension.
+         */
+        public static final String KEY_CUSTOM_DIMENSION_1 = "c0"; //$NON-NLS-1$
+
+        /**
+         * Type: {@code String}
+         * <p>
+         * Optional second custom dimension. Can only exist if there is a first custom dimension.
+         */
+        public static final String KEY_CUSTOM_DIMENSION_2 = "c1"; //$NON-NLS-1$
+
+        /**
+         * Type: {@code String}
+         * <p>
+         * Optional third custom dimension. Can only exist if there is a second custom dimension.
+         */
+        public static final String KEY_CUSTOM_DIMENSION_3 = "c2"; //$NON-NLS-1$
+
+        /**
+         * Type: {@code String}
+         * <p>
+         * Optional fourth custom dimension. Can only exist if there is a third custom dimension.
+         */
+        public static final String KEY_CUSTOM_DIMENSION_4 = "c3"; //$NON-NLS-1$
     }
 
     /**

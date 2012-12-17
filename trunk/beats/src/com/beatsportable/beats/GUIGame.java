@@ -325,7 +325,7 @@ public class GUIGame extends Activity {
 		//private String fpsTruncated = "";
 		//private String fpsTruncatedTotal = "";
 		private boolean fpsTotalStarted = false;
-		private DrawThread _thread;
+		public DrawThread _thread;
 		
 		public StepManiaView(Context context) {
 			super(context);
@@ -781,11 +781,16 @@ public class GUIGame extends Activity {
 			// TODO Auto-generated method stub
 			
 		}
-
 		public void surfaceCreated(SurfaceHolder holder) {
+			_thread = new DrawThread(holder, this);
 			_thread.setRunning(true);
-			_thread.start();
-			
+			if (!_thread.isAlive()) {
+				_thread.start();
+			}
+			// Hack sync fix
+			//resumeGame(false);
+			pauseGame(false, false);
+			resumeGame(false);
 		}
 
 		public void surfaceDestroyed(SurfaceHolder holder) {
@@ -804,11 +809,13 @@ public class GUIGame extends Activity {
 	
 	
 	private boolean isPaused = false;
-	private void stopGame(String msg, int r, int g, int b, boolean screenshot) {
+	private void stopGame(String msg, int r, int g, int b, boolean screenshot, boolean showText) {
 		mp.pausePlaying();
 		if (mView != null && !isPaused) {
 			if (!screenshotMode) {
-				h.setMessage(msg, r, g, b);
+				if (showText) {
+					h.setMessage(msg, r, g, b);
+				}
 				mView.forceUpdate();
 			}
 			mView.stopUpdating();
@@ -831,17 +838,23 @@ public class GUIGame extends Activity {
 	}
 	
 	private void pauseGame(boolean screenshot) {
-		stopGame(Tools.getString(R.string.GUIGame_paused), 255, 190, 0, screenshot); // gold
+		pauseGame(screenshot, true);
+	}
+	private void pauseGame(boolean screenshot, boolean showText) {
+		stopGame(Tools.getString(R.string.GUIGame_paused), 255, 190, 0, screenshot, showText); // gold
 	}
 	private void exitGame() {
-		stopGame(Tools.getString(R.string.GUIGame_exiting), 0, 64, 255, false); // royal blue
+		stopGame(Tools.getString(R.string.GUIGame_exiting), 0, 64, 255, false, true); // royal blue
 	}
 	private void resumeGame() {
+		resumeGame(true);
+	}
+	private void resumeGame(boolean showText) {
 		if (mView != null && isPaused) {
-			h.setMessage(Tools.getString(R.string.GUIGame_resumed), 255, 190, 0); // gold
+			if (showText) h.setMessage(Tools.getString(R.string.GUIGame_resumed), 255, 190, 0); // gold
 			if (!(h.done || h.score.gameOver)) {
 				mp.resumePlaying();
-				mView.syncCounter = -20; // Sync for at least 20 frames
+				mView.syncCounter = -200; // Sync for at least 200 frames
 			}
 			long diff = (SystemClock.elapsedRealtime() - mView.pauseTime);
 			mView.mStartTime += diff;
