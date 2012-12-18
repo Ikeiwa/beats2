@@ -104,65 +104,65 @@ namespace Beats2.Common {
 		public static List<TouchEvent> GetTouchEvents() {
 			List<TouchEvent> touchEvents = new List<TouchEvent>();
 
-			// Check for mouse input
-			if (UnityEngine.Input.GetMouseButtonDown(0)) {
-				int touchId = MOUSE_ID;
-				Vector2 position = UnityEngine.Input.mousePosition;
-				if (_touchStartPositions.ContainsKey(touchId)) {
-					_touchStartPositions[touchId] = position;
-				} else {
-					_touchStartPositions.Add(touchId, position);
+			if (SysInfo.touchSupport) { // Check for touch input
+				foreach (Touch touch in UnityEngine.Input.touches) {
+					if (touch.phase == TouchPhase.Began) {
+						int touchId = touch.fingerId;
+						Vector2 position = touch.position;
+						if (_touchStartPositions.ContainsKey(touchId)) {
+							_touchStartPositions[touchId] = position;
+						} else {
+							_touchStartPositions.Add(touchId, position);
+						}
+						if (_touchStartTimes.ContainsKey(touchId)) {
+							_touchStartTimes[touchId] = Time.time;
+						} else {
+							_touchStartTimes.Add(touchId, Time.time);
+						}
+						touchEvents.Add(new TouchEvent(
+							touchId,
+							position,
+							Vector2.zero,
+							TouchState.DOWN
+						));
+					} else if (touch.phase == TouchPhase.Ended || touch.phase == TouchPhase.Canceled) {
+						int touchId = touch.fingerId;
+						Vector2 position = touch.position;
+						Vector2 posDiff = position - _touchStartPositions[touchId];
+						float timeDiff = Time.time - _touchStartTimes[touchId];
+						if (posDiff.magnitude > INPUT_SWIPE_DIST_MIN && timeDiff < INPUT_SWIPE_TIME_MAX) {
+							Vector2 velocity = (posDiff / Screens.minPhysical) / timeDiff;
+							touchEvents.Add(new TouchEvent(
+								touchId,
+								position,
+								velocity,
+								TouchState.SWIPE
+							));
+						} else {
+							touchEvents.Add(new TouchEvent(
+								touchId,
+								position,
+								Vector2.zero,
+								TouchState.UP
+							));
+						}
+						_touchStartPositions[touchId] = Vector2.zero;
+						_touchStartTimes[touchId] = 0f;
+					} else if (touch.phase == TouchPhase.Stationary || touch.phase == TouchPhase.Moved) {
+						int touchId = touch.fingerId;
+						Vector2 position = touch.position;
+						touchEvents.Add(new TouchEvent(
+							touchId,
+							position,
+							Vector2.zero,
+							TouchState.HOLD
+						));
+					}
 				}
-				if (_touchStartTimes.ContainsKey(touchId)) {
-					_touchStartTimes[touchId] = Time.time;
-				} else {
-					_touchStartTimes.Add(touchId, Time.time);
-				}
-				touchEvents.Add(new TouchEvent(
-					touchId,
-					position,
-					Vector2.zero,
-					TouchState.DOWN
-				));
-			} else if (UnityEngine.Input.GetMouseButtonUp(0)) {
-				int touchId = MOUSE_ID;
-				Vector2 position = UnityEngine.Input.mousePosition;
-				Vector2 posDiff = position - _touchStartPositions[touchId];
-				float timeDiff = Time.time - _touchStartTimes[touchId];
-				if (posDiff.magnitude > INPUT_SWIPE_DIST_MIN && timeDiff < INPUT_SWIPE_TIME_MAX) {
-					Vector2 velocity = (posDiff / Screens.minPhysical) / timeDiff;
-					touchEvents.Add(new TouchEvent(
-						touchId,
-						position,
-						velocity,
-						TouchState.SWIPE
-					));
-				} else {
-					touchEvents.Add(new TouchEvent(
-						touchId,
-						position,
-						Vector2.zero,
-						TouchState.UP
-					));
-				}
-				_touchStartPositions[touchId] = Vector2.zero;
-				_touchStartTimes[touchId] = 0f;
-			} else if (UnityEngine.Input.GetMouseButton(0)) {
-				int touchId = MOUSE_ID;
-				Vector2 position = UnityEngine.Input.mousePosition;
-				touchEvents.Add(new TouchEvent(
-					touchId,
-					position,
-					Vector2.zero,
-					TouchState.HOLD
-				));
-			}
-
-			// Check for touch input
-			foreach (Touch touch in UnityEngine.Input.touches) {
-				if (touch.phase == TouchPhase.Began) {
-					int touchId = touch.fingerId;
-					Vector2 position = touch.position;
+			} else { // Check for mouse input
+				if (UnityEngine.Input.GetMouseButtonDown(0)) {
+					int touchId = MOUSE_ID;
+					Vector2 position = UnityEngine.Input.mousePosition;
 					if (_touchStartPositions.ContainsKey(touchId)) {
 						_touchStartPositions[touchId] = position;
 					} else {
@@ -179,9 +179,9 @@ namespace Beats2.Common {
 						Vector2.zero,
 						TouchState.DOWN
 					));
-				} else if (touch.phase == TouchPhase.Ended || touch.phase == TouchPhase.Canceled) {
-					int touchId = touch.fingerId;
-					Vector2 position = touch.position;
+				} else if (UnityEngine.Input.GetMouseButtonUp(0)) {
+					int touchId = MOUSE_ID;
+					Vector2 position = UnityEngine.Input.mousePosition;
 					Vector2 posDiff = position - _touchStartPositions[touchId];
 					float timeDiff = Time.time - _touchStartTimes[touchId];
 					if (posDiff.magnitude > INPUT_SWIPE_DIST_MIN && timeDiff < INPUT_SWIPE_TIME_MAX) {
@@ -202,9 +202,9 @@ namespace Beats2.Common {
 					}
 					_touchStartPositions[touchId] = Vector2.zero;
 					_touchStartTimes[touchId] = 0f;
-				} else if (touch.phase == TouchPhase.Stationary || touch.phase == TouchPhase.Moved) {
-					int touchId = touch.fingerId;
-					Vector2 position = touch.position;
+				} else if (UnityEngine.Input.GetMouseButton(0)) {
+					int touchId = MOUSE_ID;
+					Vector2 position = UnityEngine.Input.mousePosition;
 					touchEvents.Add(new TouchEvent(
 						touchId,
 						position,

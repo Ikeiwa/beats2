@@ -17,7 +17,8 @@ namespace Beats2.Scenes {
 			KeyCode.D,
 			KeyCode.Space,
 			KeyCode.Return,
-			KeyCode.Escape
+			KeyCode.Escape,
+			KeyCode.Menu
 		};
 
 		private List<TestArrow> _arrows;
@@ -104,7 +105,7 @@ namespace Beats2.Scenes {
 
 			_sysInfo = TestText.Instantiate(
 				squareTextData,
-				SysInfo.PrintInfo(),
+				SysInfo.InfoString(),
 				textWidth * 0.7f, textHeight * 0.7f,
 				TextAnchor.UpperLeft
 				);
@@ -143,7 +144,13 @@ namespace Beats2.Scenes {
 
 			// Load music
 			_audioPlayer = AudioPlayer.Instantiate();
+#if UNITY_ANDROID
+			// Android only supports .mp3
+			_audioPlayer.Load(Loader.GetPath("Files/Love Is Energy (areia remix instrumental).mp3"));
+# else
+			// TODO: Add MP3 support through FMOD
 			_audioPlayer.Load(Loader.GetPath("Files/Love Is Energy (areia remix instrumental).ogg"));
+#endif
 			_audioPlayer.loop = true;
 			_audioPlayer.Play();
 
@@ -159,6 +166,9 @@ namespace Beats2.Scenes {
 			// Get key input
 			foreach (Inputs.KeyEvent e in Inputs.GetKeyEvents()) {
 				_touchLog.text = e.ToString();
+				if (e.key == KeyCode.Escape) {
+					Application.Quit();
+				}
 			}
 
 			// Get touch input

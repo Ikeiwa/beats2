@@ -74,7 +74,7 @@ namespace Beats2.Common {
 
 			Reset();
 			Logger.Debug(TAG, "Initialized...");
-			Logger.Debug(TAG, PrintInfo());
+			Logger.Debug(TAG, InfoString());
 		}
 		
 		public static void Reset() {
@@ -151,7 +151,7 @@ namespace Beats2.Common {
 			return Screens.minPhysical < phoneScreenWidth;
 		}
 
-		public static string PrintInfo() {
+		public static string InfoString() {
 			return
 				"appName: " + appName +
 				"\nappVersionNum: " + appVersionNum +
@@ -165,7 +165,9 @@ namespace Beats2.Common {
 				"\nunityVersion: " + unityVersion +
 				"\nvibrationSupport: " + vibrationSupport +
 				"\ntouchSupport: " + touchSupport +
-				"\nsystemLanguage: " + language
+				"\nsystemLanguage: " + language +
+				"\ndataPath: " + UnityEngine.Application.dataPath +
+				"\npersistentDataPath: " + UnityEngine.Application.persistentDataPath
 			;
 		}
 	}
