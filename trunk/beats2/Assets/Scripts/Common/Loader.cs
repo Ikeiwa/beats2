@@ -22,7 +22,11 @@ namespace Beats2.Common {
 		private const string FILE_PROTOCOL = "file://";
 
 		public static void Init() {
+#if UNITY_ANDROID
+			_root = "/mnt/sdcard";
+# else
 			_root = GetRoot();
+#endif
 			Reset();
 			Logger.Debug(TAG, "Initialized...");
 		}
