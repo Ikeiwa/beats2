@@ -12,7 +12,7 @@ namespace Beats2.UI {
 		private float _updateDiff;
 		private float _timeDiff;
 		private int _frameDiff;
-		private float FPS_COUNTER_UPDATE_INTERVAL;
+		private float FPS_UPDATE_INTERVAL;
 
 		public static FpsCounter Instantiate(TextData data, float fontHeight) {
 			// Create GameObject
@@ -22,7 +22,7 @@ namespace Beats2.UI {
 
 			// Add FpsCounter Component
 			FpsCounter beatsObj = obj.AddComponent<FpsCounter>();
-			beatsObj.FPS_COUNTER_UPDATE_INTERVAL = SettingsManager.GetValueFloat(Settings.FPS_COUNTER_UPDATE_INTERVAL);
+			beatsObj.FPS_UPDATE_INTERVAL = SettingsManager.GetValueFloat(Settings.MISC_FPS_UPDATE_INTERVAL);
 			beatsObj.ResetCounter();
 
 			// Add Sprite Component
@@ -37,7 +37,7 @@ namespace Beats2.UI {
 
 		// Reset counters
 		public void ResetCounter() {
-			_updateDiff = FPS_COUNTER_UPDATE_INTERVAL;
+			_updateDiff = FPS_UPDATE_INTERVAL;
 			_timeDiff = 0f;
 			_frameDiff = 0;
 		}
