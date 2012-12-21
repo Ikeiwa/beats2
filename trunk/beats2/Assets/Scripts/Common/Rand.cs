@@ -20,7 +20,7 @@ namespace Beats2.Common {
 		}
 		
 		public static void Reset() {
-			SetSeed(SettingsManager.GetValueInt(Settings.RANDOM_SEED));
+			SetSeed(SettingsManager.GetValueInt(Settings.MISC_RANDOM_SEED));
 			Logger.Debug(TAG, "Reset...");
 		}
 		
