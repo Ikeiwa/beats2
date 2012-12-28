@@ -1,5 +1,6 @@
 using UnityEngine; // Keep for SystemLanguage, may try to abstract away later
 using System;
+using System.IO;
 using System.Collections.Generic;
 using Beats2;
 using Beats2.Common;
@@ -14,6 +15,8 @@ namespace Beats2.Common {
 	/// </summary>
 	public static class SysInfo {
 		private const string TAG = "SysInfo";
+		private const string BEATS2_DIR = "Beats2";
+		private const string FILE_PROTOCOL = "file://";
 		
 		public enum DeviceTypes {
 			DESKTOP,
@@ -55,22 +58,33 @@ namespace Beats2.Common {
 		public static bool touchSupport			{ get; private set; }
 
 		public static SystemLanguage language	{ get; private set; }
+
+		public static string rootPath			{ get; private set; }
+		public static string dataPath			{ get; private set; }
 		
 		public static void Init() {
 			appName = Constants.APP_NAME;
 			appVersionNum = Constants.APP_VERSION_NUM;
 			appVersionName = Constants.APP_VERSION_NAME;
 
-			deviceName = UnityEngine.SystemInfo.deviceName;
-			deviceModel = UnityEngine.SystemInfo.deviceModel;
-			// FIXME: deviceId = UnityEngine.SystemInfo.deviceUniqueIdentifier;
+			deviceName = SystemInfo.deviceName;
+			deviceModel = SystemInfo.deviceModel;
+			// FIXME: deviceId = SystemInfo.deviceUniqueIdentifier;
 
 			SetPlatformAndDeviceType();
-			operatingSystem = UnityEngine.SystemInfo.operatingSystem;
-			unityVersion = UnityEngine.Application.unityVersion;
+			operatingSystem = SystemInfo.operatingSystem;
+			unityVersion = Application.unityVersion;
 
-			vibrationSupport = UnityEngine.SystemInfo.supportsVibration;
-			touchSupport = UnityEngine.Input.multiTouchEnabled;
+			vibrationSupport = SystemInfo.supportsVibration;
+			touchSupport = Input.multiTouchEnabled;
+
+			if ((rootPath = GetRootPath()) == null) {
+				Logger.Error(TAG, "Unable to find root path");
+				throw new BeatsException("Unable to find root path");
+			}
+			if ((dataPath = GetDataPath()) == null) {
+				// TODO - extract resources
+			}
 
 			Reset();
 			Logger.Debug(TAG, "Initialized...");
@@ -78,63 +92,63 @@ namespace Beats2.Common {
 		}
 		
 		public static void Reset() {
-			language = UnityEngine.Application.systemLanguage;
+			language = Application.systemLanguage;
 			Logger.Debug(TAG, "Reset...");
 		}
 
 		private static void SetPlatformAndDeviceType() {
-			switch (UnityEngine.Application.platform) {
-				case UnityEngine.RuntimePlatform.OSXEditor:
-				case UnityEngine.RuntimePlatform.OSXPlayer:
-				case UnityEngine.RuntimePlatform.OSXDashboardPlayer:
+			switch (Application.platform) {
+				case RuntimePlatform.OSXEditor:
+				case RuntimePlatform.OSXPlayer:
+				case RuntimePlatform.OSXDashboardPlayer:
 					platform = Platforms.DESKTOP_OSX;
 					deviceType = DeviceTypes.DESKTOP;
 					break;
-				case UnityEngine.RuntimePlatform.WindowsEditor:
-				case UnityEngine.RuntimePlatform.WindowsPlayer:
+				case RuntimePlatform.WindowsEditor:
+				case RuntimePlatform.WindowsPlayer:
 					platform = Platforms.DESKTOP_WINDOWS;
 					deviceType = DeviceTypes.DESKTOP;
 					break;
-				case UnityEngine.RuntimePlatform.LinuxPlayer:
+				case RuntimePlatform.LinuxPlayer:
 					platform = Platforms.DESKTOP_LINUX;
 					deviceType = DeviceTypes.DESKTOP;
 					break;
-				case UnityEngine.RuntimePlatform.OSXWebPlayer:
-				case UnityEngine.RuntimePlatform.WindowsWebPlayer:
+				case RuntimePlatform.OSXWebPlayer:
+				case RuntimePlatform.WindowsWebPlayer:
 					platform = Platforms.WEB_BROWSER;
 					deviceType = DeviceTypes.WEB;
 					break;
-				case UnityEngine.RuntimePlatform.FlashPlayer:
+				case RuntimePlatform.FlashPlayer:
 					platform = Platforms.WEB_FLASH;
 					deviceType = DeviceTypes.WEB;
 					break;
-				case UnityEngine.RuntimePlatform.NaCl:
+				case RuntimePlatform.NaCl:
 					platform = Platforms.WEB_GOOGLE;
 					deviceType = DeviceTypes.WEB;
 					break;
-				case UnityEngine.RuntimePlatform.WiiPlayer:
+				case RuntimePlatform.WiiPlayer:
 					platform = Platforms.CONSOLE_WII;
 					deviceType = DeviceTypes.CONSOLE;
 					break;
-				case UnityEngine.RuntimePlatform.XBOX360:
+				case RuntimePlatform.XBOX360:
 					platform = Platforms.CONSOLE_XBOX;
 					deviceType = DeviceTypes.CONSOLE;
 					break;
-				case UnityEngine.RuntimePlatform.PS3:
+				case RuntimePlatform.PS3:
 					platform = Platforms.CONSOLE_PS3;
 					deviceType = DeviceTypes.CONSOLE;
 					break;
-				case UnityEngine.RuntimePlatform.IPhonePlayer:
+				case RuntimePlatform.IPhonePlayer:
 					platform = Platforms.DEVICE_IOS;
 					deviceType = (IsPhone()) ? DeviceTypes.PHONE : DeviceTypes.TABLET;
 					break;
-				case UnityEngine.RuntimePlatform.Android:
+				case RuntimePlatform.Android:
 					platform = Platforms.DEVICE_ANDROID;
 					deviceType = (IsPhone()) ? DeviceTypes.PHONE : DeviceTypes.TABLET;
 					break;
 				// Not implemented yet
 				/*
-				case UnityEngine.RuntimePlatform.WindowsPhone:
+				case RuntimePlatform.WindowsPhone:
 					platform = Platforms.DEVICE_WINPHONE;
 					deviceType = DeviceTypes.PHONE;
 					break;
@@ -149,6 +163,56 @@ namespace Beats2.Common {
 		private static bool IsPhone() {
 			float phoneScreenWidth = SettingsManager.GetValueFloat(Settings.SYSTEM_PHONE_SCREEN_WIDTH);
 			return Screens.minPhysical < phoneScreenWidth;
+		}
+
+#if UNITY_ANDROID
+		private static string[] sdcardPaths = {
+			//"/mnt/sdcard/external_sd",
+			//"/mnt/sdcard/sd",
+			//"/sdcard/external_sd",
+			//"/sdcard/sd",
+			//"/mnt/external_sd",
+			//"/mnt/sdcard-ext",
+			"/mnt/sdcard",
+			"/mnt/sd",
+			//"/mnt/external_sd",
+			//"/sdcard-ext",
+			"/sdcard",
+			"/sd"
+		};
+#endif
+
+		private static string GetRootPath() {
+#if UNITY_ANDROID
+			foreach (string path in sdcardPaths) {
+				if (Directory.Exists(path)) {
+					return path;
+				}
+			}
+#else
+			string path = Application.dataPath;
+			if (path.IndexOf('/') != -1) {
+				path = path.Substring(0, path.LastIndexOf('/'));
+			}
+			if (Directory.Exists(path)) {
+				return path;
+			}
+#endif
+			return null;
+		}
+
+		private static string GetDataPath() {
+			return String.Format("{0}{1}{2}", rootPath, Path.AltDirectorySeparatorChar, BEATS2_DIR);
+		}
+
+		public static string GetPath(string fileName) {
+			string filePath = String.Format("{0}{1}{2}", dataPath, Path.AltDirectorySeparatorChar, fileName);
+			if (File.Exists(filePath)) {
+				return FILE_PROTOCOL + filePath;
+			} else {
+				Logger.Error(TAG, String.Format("Unable to find file \"{0}\"", filePath));
+				return null;
+			}
 		}
 
 		public static string InfoString() {
@@ -166,8 +230,8 @@ namespace Beats2.Common {
 				"\nvibrationSupport: " + vibrationSupport +
 				"\ntouchSupport: " + touchSupport +
 				"\nsystemLanguage: " + language +
-				"\ndataPath: " + UnityEngine.Application.dataPath +
-				"\npersistentDataPath: " + UnityEngine.Application.persistentDataPath
+				"\ndataPath: " + dataPath +
+				"\ndataPath: " + dataPath
 			;
 		}
 	}

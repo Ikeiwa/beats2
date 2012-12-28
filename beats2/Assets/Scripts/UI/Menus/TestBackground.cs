@@ -10,9 +10,8 @@ namespace Beats2.UI {
 	public class TestBackground : BeatsObject<Sprite> {
 
 		private SpriteData _data;
-		private string _imgUrl;
 
-		public static TestBackground Instantiate(string imgUrl) {
+		public static TestBackground Instantiate() {
 			// Create GameObject
 			GameObject obj = new GameObject();
 			obj.name = "TestBackground";
@@ -22,13 +21,12 @@ namespace Beats2.UI {
 			TestBackground beatsObj = obj.AddComponent<TestBackground>();
 
 			// Create SpriteData
-			Texture2D texture = Loader.LoadTexture(imgUrl, false);
+			Texture2D texture = SpriteLoader.GetTexture(Sprites.SANDBOX_BACKGROUND);
 			if (Screens.width > Screens.height) {
 				beatsObj._data = new SpriteData(texture, Screens.width, 0f, ScaleType.SCALED_WIDTH);
 			} else {
 				beatsObj._data = new SpriteData(texture, 0f, Screens.height, ScaleType.SCALED_HEIGHT);
 			}
-			beatsObj._imgUrl = imgUrl;
 
 			// Add Sprite Component
 			Sprite sprite = obj.AddComponent<Sprite>();
@@ -42,7 +40,6 @@ namespace Beats2.UI {
 		public override void Destroy() {
 			base.Destroy();
 			_data.Destroy();
-			Loader.UnloadTexture(_imgUrl);
 		}
 	}
 }

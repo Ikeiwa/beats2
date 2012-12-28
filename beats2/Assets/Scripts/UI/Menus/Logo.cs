@@ -10,14 +10,12 @@ namespace Beats2.UI {
 	public class Logo : BeatsObject<Sprite> {
 
 		private static SpriteData _data;
-		private static string _imgUrl;
 
-		public static void Init(string imgUrl) {
+		public static void Init() {
 			// Create SpriteData
 			float width = Screens.width / 2;
-			Texture2D texture = Loader.LoadTexture(imgUrl, false);
+			Texture2D texture = SpriteLoader.GetTexture(Sprites.SANDBOX_LOGO);
 			_data = new SpriteData(texture, width);
-			_imgUrl = imgUrl;
 		}
 
 		public static Logo Instantiate() {
@@ -45,7 +43,6 @@ namespace Beats2.UI {
 
 		public static void Cleanup() {
 			_data.Destroy();
-			Loader.UnloadTexture(_imgUrl);
 		}
 	}
 }

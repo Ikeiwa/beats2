@@ -14,7 +14,7 @@ namespace Beats2.Graphic {
 		public tk2dFontData data;
 		public float width, height;
 
-		public TextData(string imgUrl, string textUrl) : this(Loader.LoadTexture(imgUrl, false), Loader.LoadText(textUrl)) {}
+		public TextData(string imgUrl, string textUrl) : this(SpriteLoader.LoadTexture(imgUrl, false), Loader.LoadText(textUrl)) {}
 		public TextData(Texture2D texture, string textInfo) {
 			GameObject obj = new GameObject();
 			obj.name = "TextData";

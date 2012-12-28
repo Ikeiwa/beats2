@@ -28,6 +28,7 @@ namespace Beats2.Scenes {
 			Score.Init();
 			Vibrator.Init();
 			Tracker.Init();
+			SpriteLoader.Init();
 		}
 
 		public virtual void Update() {}
