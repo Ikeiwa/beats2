@@ -1,4 +1,4 @@
-Last updated: 2012/12/17
+Last updated: 2012/12/27
 ~Keripo
 
 This is the source code for Beats2. For more information, please see the following websites:
@@ -21,7 +21,7 @@ To import the project:
 8) Click on "Player Settings..." and update the Cross-Platform settings accordingly
 9) Click on the "Build Settings" "Build" button
 10) Name and save the binary output file somewhere (such as the root of the "beats2" folder)
-11) Copy the "beats2/Files" folder to the same folder you saved the binary in (you don't have to do this if you saved it in the root "beats2" folder)
+11) Copy the "beats2/Beats2" folder to the same folder you saved the binary in (you don't have to do this if you saved it in the root "beats2" folder)
 12) Run the binary app
 
 Please not that not all files of this project are under the same license. The C# scripts in the "Assets/Scripts" folder, however, are all under the Modified BSD license - see "Assets/Scripts/License.txt"

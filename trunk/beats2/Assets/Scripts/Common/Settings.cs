@@ -31,7 +31,7 @@ namespace Beats2.Common {
 		[SettingsInfo("ScoreTimingPerfect",		"0.033333")]	SCORE_TIMING_PERFECT,
 		[SettingsInfo("ScoreTimingGreat",		"0.066667")]	SCORE_TIMING_GREAT,
 		[SettingsInfo("ScoreTimingGood",		"0.083333")]	SCORE_TIMING_GOOD,
-		[SettingsInfo("ScoreTimingAlmost",		"0.133333")]	SCORE_TIMING_ALMOST,
+		[SettingsInfo("ScoreTimingBad",			"0.133333")]	SCORE_TIMING_BAD,
 		[SettingsInfo("ScoreTimingOk",			"0.250000")]	SCORE_TIMING_OK,
 		[SettingsInfo("SystemPhoneScreenWidth",	"3")]			SYSTEM_PHONE_SCREEN_WIDTH,
 		[SettingsInfo("SystemEnableVibrations",	"True")]		SYSTEM_ENABLE_VIBRATIONS
