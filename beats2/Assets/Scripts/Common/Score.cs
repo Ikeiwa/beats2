@@ -21,7 +21,7 @@ namespace Beats2.Common {
 			PERFECT,
 			GREAT,
 			GOOD,
-			ALMOST, // BOO
+			BAD, // BOO
 			MISS,
 			OK,
 			NG,
@@ -37,7 +37,7 @@ namespace Beats2.Common {
 		
 		private static GameState _state;
 		private static float SCORE_PERCENT_AAA, SCORE_PERCENT_AA, SCORE_PERCENT_A, SCORE_PERCENT_B, SCORE_PERCENT_C;
-		private static float SCORE_TIMING_FLAWLESS, SCORE_TIMING_PERFECT, SCORE_TIMING_GREAT, SCORE_TIMING_GOOD, SCORE_TIMING_ALMOST, SCORE_TIMING_OK;
+		private static float SCORE_TIMING_FLAWLESS, SCORE_TIMING_PERFECT, SCORE_TIMING_GREAT, SCORE_TIMING_GOOD, SCORE_TIMING_BAD, SCORE_TIMING_OK;
 		
 		public static void Init() {
 			Reset();
@@ -58,7 +58,7 @@ namespace Beats2.Common {
 			SCORE_TIMING_PERFECT = SettingsManager.GetValueFloat(Settings.SCORE_TIMING_PERFECT);
 			SCORE_TIMING_GREAT = SettingsManager.GetValueFloat(Settings.SCORE_TIMING_GREAT);
 			SCORE_TIMING_GOOD = SettingsManager.GetValueFloat(Settings.SCORE_TIMING_GOOD);
-			SCORE_TIMING_ALMOST = SettingsManager.GetValueFloat(Settings.SCORE_TIMING_ALMOST);
+			SCORE_TIMING_BAD = SettingsManager.GetValueFloat(Settings.SCORE_TIMING_BAD);
 			SCORE_TIMING_OK = SettingsManager.GetValueFloat(Settings.SCORE_TIMING_OK);
 			Logger.Debug(TAG, "Reset...");
 		}
@@ -73,7 +73,7 @@ namespace Beats2.Common {
 				case AccuracyType.PERFECT:	return 2;
 				case AccuracyType.GREAT:	return 1;
 				case AccuracyType.GOOD:		return 0;
-				case AccuracyType.ALMOST:	return -4;
+				case AccuracyType.BAD:	return -4;
 				case AccuracyType.MISS:		return -8;
 				case AccuracyType.OK:		return 6;
 				case AccuracyType.NG:		return 0;
@@ -115,10 +115,10 @@ namespace Beats2.Common {
 						return AccuracyType.GREAT;
 					} else if (timeDiffAbs <= SCORE_TIMING_GOOD) {
 						return AccuracyType.GOOD;
-					} else if (timeDiffAbs <= SCORE_TIMING_ALMOST) {
-						return AccuracyType.ALMOST;
+					} else if (timeDiffAbs <= SCORE_TIMING_BAD) {
+						return AccuracyType.BAD;
 					} else {
-						if (timeDiff > SCORE_TIMING_ALMOST) {
+						if (timeDiff > SCORE_TIMING_BAD) {
 							return AccuracyType.MISS;
 						} else {
 							return AccuracyType.IGNORE;	
@@ -142,7 +142,7 @@ namespace Beats2.Common {
 				case NoteTypes.TAP:
 				case NoteTypes.HOLD_START:
 				case NoteTypes.SLIDER_START:
-					return SCORE_TIMING_ALMOST;
+					return SCORE_TIMING_BAD;
 				case NoteTypes.HOLD_FINISH:
 				case NoteTypes.SLIDER_FINISH:
 					return SCORE_TIMING_OK;

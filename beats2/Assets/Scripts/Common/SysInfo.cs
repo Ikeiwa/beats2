@@ -59,7 +59,6 @@ namespace Beats2.Common {
 
 		public static SystemLanguage language	{ get; private set; }
 
-		public static string rootPath			{ get; private set; }
 		public static string dataPath			{ get; private set; }
 		
 		public static void Init() {
@@ -69,7 +68,7 @@ namespace Beats2.Common {
 
 			deviceName = SystemInfo.deviceName;
 			deviceModel = SystemInfo.deviceModel;
-			// FIXME: deviceId = SystemInfo.deviceUniqueIdentifier;
+			deviceId = SystemInfo.deviceUniqueIdentifier;
 
 			SetPlatformAndDeviceType();
 			operatingSystem = SystemInfo.operatingSystem;
@@ -78,13 +77,7 @@ namespace Beats2.Common {
 			vibrationSupport = SystemInfo.supportsVibration;
 			touchSupport = Input.multiTouchEnabled;
 
-			if ((rootPath = GetRootPath()) == null) {
-				Logger.Error(TAG, "Unable to find root path");
-				throw new BeatsException("Unable to find root path");
-			}
-			if ((dataPath = GetDataPath()) == null) {
-				// TODO - extract resources
-			}
+			SetDataPath();
 
 			Reset();
 			Logger.Debug(TAG, "Initialized...");
@@ -182,11 +175,12 @@ namespace Beats2.Common {
 		};
 #endif
 
-		private static string GetRootPath() {
+		private static void SetDataPath() {
 #if UNITY_ANDROID
 			foreach (string path in sdcardPaths) {
-				if (Directory.Exists(path)) {
-					return path;
+				dataPath = String.Format("{0}{1}{2}", path, Path.AltDirectorySeparatorChar, BEATS2_DIR);
+				if (Directory.Exists(dataPath)) {
+					return;
 				}
 			}
 #else
@@ -194,15 +188,13 @@ namespace Beats2.Common {
 			if (path.IndexOf('/') != -1) {
 				path = path.Substring(0, path.LastIndexOf('/'));
 			}
-			if (Directory.Exists(path)) {
-				return path;
+			dataPath = String.Format("{0}{1}{2}", path, Path.AltDirectorySeparatorChar, BEATS2_DIR);
+			if (Directory.Exists(dataPath)) {
+				return;
 			}
 #endif
-			return null;
-		}
-
-		private static string GetDataPath() {
-			return String.Format("{0}{1}{2}", rootPath, Path.AltDirectorySeparatorChar, BEATS2_DIR);
+			// TODO - replace this with logic for extracting data
+			throw new BeatsException(TAG, "Unable to find data path");
 		}
 
 		public static string GetPath(string fileName) {
@@ -222,7 +214,7 @@ namespace Beats2.Common {
 				"\nappVersionName: " + appVersionName +
 				"\ndeviceName: " + deviceName +
 				"\ndeviceModel: " + deviceModel +
-				"\ndeviceId: " + deviceModel +
+				"\ndeviceId: " + deviceId +
 				"\nplatform: " + platform +
 				"\ndeviceType: " + deviceType +
 				"\noperatingSystem: " + operatingSystem +
@@ -230,7 +222,6 @@ namespace Beats2.Common {
 				"\nvibrationSupport: " + vibrationSupport +
 				"\ntouchSupport: " + touchSupport +
 				"\nsystemLanguage: " + language +
-				"\ndataPath: " + dataPath +
 				"\ndataPath: " + dataPath
 			;
 		}
