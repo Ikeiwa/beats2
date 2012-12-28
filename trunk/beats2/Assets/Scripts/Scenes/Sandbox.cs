@@ -40,20 +40,16 @@ namespace Beats2.Scenes {
 			InitAll();
 			Logger.debug = true;
 
-			//Logger.Log(TAG, UnityEngine.Application.persistentDataPath);
-			Logger.Log(TAG, UnityEngine.Application.dataPath);
-			//Logger.Log(TAG, UnityEngine.Application.temporaryCachePath);
-
 			// Set up input listeners
 			Inputs.SetKeyListeners(_keyListeners);
 
 			// Beats logo
-			Logo.Init(Loader.GetPath("Files/Logo.png"));
+			Logo.Init();
 			Logo logo = Logo.Instantiate();
 			logo.position = new Vector3(Screens.xmid, Screens.ymid, Screens.zmin);
 
 			// Arrow in each corner
-			TestArrow.Init(Loader.GetPath("Files/mode_step_down.png"));
+			TestArrow.Init();
 			for (int x = 0; x < 3; x++) {
 				for (int y = 0; y < 3; y++) {
 					float posX = (x == 0) ? Screens.xmin : (x == 1) ? Screens.xmid : Screens.xmax;
@@ -69,7 +65,7 @@ namespace Beats2.Scenes {
 			_randomArrow.position = new Vector3(Screens.xmax - 75f, Screens.ymax - 50f, Screens.zmin);
 
 			// Two random holds
-			TestHold.Init(Loader.GetPath("Files/hold_active_down.png"));
+			TestHold.Init();
 			_hold1 = TestHold.Instantiate(Screens.height - _randomArrow.height);
 			_hold1.name = "hold1";
 			_hold1.position = new Vector3(Screens.xmax - (_hold1.width / 2), Screens.ymid, Screens.zmid);
@@ -79,7 +75,7 @@ namespace Beats2.Scenes {
 			_hold2.position = new Vector3(_hold1.x - _hold1.width * 2, Screens.ymid, Screens.zmid);
 
 			// Background image
-			TestBackground background = TestBackground.Instantiate(Loader.GetPath("Files/Background.jpg"));
+			TestBackground background = TestBackground.Instantiate();
 			background.name = "background2";
 			background.position = new Vector3(Screens.xmid, Screens.ymid, Screens.zmax);
 			background.color = new Color(background.color.r, background.color.g, background.color.b, 0.75f);
@@ -91,15 +87,9 @@ namespace Beats2.Scenes {
 
 			// Text label
 			TextData squareTextData = new TextData(
-				Loader.GetPath("Files/Square.png"),
-				Loader.GetPath("Files/Square.fnt")
+				SysInfo.GetPath("Sandbox/Square.png"),
+				SysInfo.GetPath("Sandbox/Square.fnt")
 				);
-			/*
-			TextData happyKillerTextData = new TextData(
-				Loader.GetPath("Files/HappyKiller.png"),
-				Loader.GetPath("Files/HappyKiller.fnt")
-				);
-			*/
 			float textWidth = squareTextData.width * (_randomArrow.height / 2) / squareTextData.height;
 			float textHeight = (_randomArrow.height / 2);
 
@@ -146,10 +136,10 @@ namespace Beats2.Scenes {
 			_audioPlayer = AudioPlayer.Instantiate();
 #if UNITY_ANDROID
 			// Android only supports .mp3
-			_audioPlayer.Load(Loader.GetPath("Files/Love Is Energy (areia remix instrumental).mp3"));
+			_audioPlayer.Load(SysInfo.GetPath("Sandbox/Song.mp3"));
 # else
 			// TODO: Add MP3 support through FMOD
-			_audioPlayer.Load(Loader.GetPath("Files/Love Is Energy (areia remix instrumental).ogg"));
+			_audioPlayer.Load(SysInfo.GetPath("Sandbox/Song.ogg"));
 #endif
 			_audioPlayer.loop = true;
 			_audioPlayer.Play();

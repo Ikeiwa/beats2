@@ -10,15 +10,13 @@ namespace Beats2.UI {
 	public class TestHold : BeatsObject<Sprite> {
 
 		private static Texture2D _texture;
-		private static string _imgUrl;
 		private static float _width;
 		private SpriteData _data;
 
-		public static void Init(string imgUrl) {
+		public static void Init() {
 			// Create SpriteData
 			_width = Screens.min * 0.10f;
-			_texture = Loader.LoadTexture(imgUrl, true);
-			_imgUrl = imgUrl;
+			_texture = SpriteLoader.GetTexture(Sprites.SANDBOX_HOLD);
 		}
 
 		public static TestHold Instantiate(float height) {
@@ -44,10 +42,6 @@ namespace Beats2.UI {
 
 			// Return instantiated BeatsObject
 			return beatsObj;
-		}
-
-		public static void Cleanup() {
-			Loader.UnloadTexture(_imgUrl);
 		}
 
 		public override void Destroy() {
