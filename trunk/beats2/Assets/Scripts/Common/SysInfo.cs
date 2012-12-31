@@ -158,7 +158,7 @@ namespace Beats2.Common {
 			return Screens.minPhysical < phoneScreenWidth;
 		}
 
-#if UNITY_ANDROID
+#if UNITY_ANDROID && !UNITY_EDITOR
 		private static string[] sdcardPaths = {
 			//"/mnt/sdcard/external_sd",
 			//"/mnt/sdcard/sd",
@@ -176,7 +176,7 @@ namespace Beats2.Common {
 #endif
 
 		private static void SetDataPath() {
-#if UNITY_ANDROID
+#if UNITY_ANDROID && !UNITY_EDITOR
 			foreach (string path in sdcardPaths) {
 				dataPath = String.Format("{0}{1}{2}", path, Path.AltDirectorySeparatorChar, BEATS2_DIR);
 				if (Directory.Exists(dataPath)) {

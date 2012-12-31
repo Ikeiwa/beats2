@@ -6,6 +6,13 @@ using Beats2.Common;
 
 namespace Beats2.Graphic {
 
+	public enum ScaleType {
+		NONE,
+		SCALED,
+		SCALED_WIDTH,
+		SCALED_HEIGHT
+	}
+
 	public abstract class BaseGraphic : MonoBehaviour {
 
 		public abstract Vector3 position { get; set; }

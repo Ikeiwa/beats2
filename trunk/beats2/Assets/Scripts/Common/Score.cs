@@ -34,6 +34,16 @@ namespace Beats2.Common {
 			FINISHED,
 			FAILED
 		}
+
+		public enum Rankings {
+			F,
+			D,
+			C,
+			B,
+			A,
+			AA,
+			AAA
+		}
 		
 		private static GameState _state;
 		private static float SCORE_PERCENT_AAA, SCORE_PERCENT_AA, SCORE_PERCENT_A, SCORE_PERCENT_B, SCORE_PERCENT_C;
@@ -73,7 +83,7 @@ namespace Beats2.Common {
 				case AccuracyType.PERFECT:	return 2;
 				case AccuracyType.GREAT:	return 1;
 				case AccuracyType.GOOD:		return 0;
-				case AccuracyType.BAD:	return -4;
+				case AccuracyType.BAD:		return -4;
 				case AccuracyType.MISS:		return -8;
 				case AccuracyType.OK:		return 6;
 				case AccuracyType.NG:		return 0;
@@ -83,21 +93,21 @@ namespace Beats2.Common {
 			}
 		}
 		
-		public static string GetRanking(float percent) {
+		public static Rankings GetRanking(float percent) {
 			if (_state == GameState.FAILED) {
-				return Constants.RANKING_FAIL;
+				return Rankings.F;
 			} else if (percent >= SCORE_PERCENT_AAA) {
-				return Constants.RANKING_AAA;
+				return Rankings.AAA;
 			} else if (percent >= SCORE_PERCENT_AA) {
-				return Constants.RANKING_AA;
+				return Rankings.AA;
 			} else if (percent >= SCORE_PERCENT_A) {
-				return Constants.RANKING_A;
+				return Rankings.A;
 			} else if (percent >= SCORE_PERCENT_B) {
-				return Constants.RANKING_B;
+				return Rankings.B;
 			} else if (percent >= SCORE_PERCENT_C) {
-				return Constants.RANKING_C;
+				return Rankings.C;
 			} else {
-				return Constants.RANKING_D;
+				return Rankings.D;
 			}
 		}
 		

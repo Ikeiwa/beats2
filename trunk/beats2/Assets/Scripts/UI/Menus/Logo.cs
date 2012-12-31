@@ -7,15 +7,15 @@ using Beats2.Graphic;
 
 namespace Beats2.UI {
 	
-	public class Logo : BeatsObject<Sprite> {
+	public class Logo : BeatsObject<SpriteFlat> {
 
-		private static SpriteData _data;
+		private static SpriteFlatData _data;
 
 		public static void Init() {
 			// Create SpriteData
 			float width = Screens.width / 2;
 			Texture2D texture = SpriteLoader.GetTexture(Sprites.SANDBOX_LOGO);
-			_data = new SpriteData(texture, width);
+			_data = new SpriteFlatData("Logo", texture, width);
 		}
 
 		public static Logo Instantiate() {
@@ -28,7 +28,7 @@ namespace Beats2.UI {
 			Logo beatsObj = obj.AddComponent<Logo>();
 
 			// Add Sprite Component
-			Sprite sprite = obj.AddComponent<Sprite>();
+			SpriteFlat sprite = obj.AddComponent<SpriteFlat>();
 			sprite.Setup(_data);
 			beatsObj._sprite = sprite;
 

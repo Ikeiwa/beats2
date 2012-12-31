@@ -7,41 +7,27 @@ using Beats2.Common;
 namespace Beats2.Graphic {
 
 	/// <summary>
-	/// Text object. Creates and wraps tk2D's tk2dTextMesh class
+	/// Animated sprite object. Creates and wraps tk2D's tk2dSprite class
 	/// </summary>
-	public class Text : BaseGraphic {
+	public class SpriteAnim : BaseGraphic {
 
-		protected tk2dTextMesh _sprite;
-		protected TextData _data;
+		protected tk2dAnimatedSprite _sprite;
+		protected SpriteAnimData _data;
 		protected Vector3 _dimensions, _dimensionsInit;
-		private bool _commit;
 
-		public void Setup(TextData data, float fontWidth, float fontHeight, TextAnchor anchor) {
+		public void Setup(SpriteAnimData data) {
 			_data = data;
-			_sprite = gameObject.AddComponent<tk2dTextMesh>();
-			_sprite.font = _data.data;
-			_sprite.text = "AAAAAAAAAAAAAAA"; // starting size of 16 chars
-			_sprite.anchor = anchor;
+			_sprite = gameObject.AddComponent<tk2dAnimatedSprite>();
+			_sprite.SwitchCollectionAndSprite(data.data, 0);
+			_sprite.anim = _data.anim;
+			_sprite.Build();
 
-			_dimensionsInit = new Vector3(data.width, data.height, 1f);
-			dimensions = new Vector3(fontWidth, fontHeight, 1f);
-			_commit = true;
+			_dimensionsInit = new Vector3(data.regionWidth, data.regionHeight, 1f);
+			dimensions = new Vector3(data.width, data.height, 1f);
 		}
 
-		public UnityEngine.TextAnchor anchor {
-			get { return _sprite.anchor; }
-			set { _sprite.anchor = value; _commit = true;; }
-		}
-
-		public string text {
-			get { return _sprite.text; }
-			set {
-				_sprite.text = value;
-				if (value.Length > _sprite.maxChars) {
-					_sprite.maxChars = value.Length * 2;
-				}
-				_commit = true;;
-			}
+		public void Play() {
+			_sprite.Play();
 		}
 
 		public override Vector3 position {
@@ -65,7 +51,6 @@ namespace Beats2.Graphic {
 			set {
 				_dimensions = value;
 				_sprite.scale = new Vector3(_dimensions.x / _dimensionsInit.x, _dimensions.y / _dimensionsInit.y, 1f);
-				_commit = true;;
 			}
 		}
 		public override float width {
@@ -78,14 +63,7 @@ namespace Beats2.Graphic {
 		}
 		public override Color color {
 			get { return _sprite.color; }
-			set { _sprite.color = value; _commit = true;; }
-		}
-
-		public void Update() {
-			if (_commit) {
-				_sprite.Commit();
-				_commit = false;
-			}
+			set { _sprite.color = value; }
 		}
 	}
 }

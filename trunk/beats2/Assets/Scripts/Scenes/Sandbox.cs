@@ -34,6 +34,8 @@ namespace Beats2.Scenes {
 		private AudioPlayer _audioPlayer;
 		private float _time;
 
+		private TestMine _mine;
+
 		// Use this for initialization
 		public override void Start() {
 			// Initialize
@@ -144,6 +146,9 @@ namespace Beats2.Scenes {
 			_audioPlayer.loop = true;
 			_audioPlayer.Play();
 
+			TestMine.Init();
+			_mine = TestMine.Instantiate();
+			_mine.gameObject.transform.position = new Vector3(Screens.xmid, (Screens.ymin + Screens.ymid) / 2, Screens.zmin - 10);
 		}
 		
 		// Update is called once per frame
@@ -168,7 +173,11 @@ namespace Beats2.Scenes {
 				if (obj != null) {
 					_collisionLog.text = obj.name;
 					if (e.state == Inputs.TouchState.DOWN) {
-						if (obj.tag == Tags.MENU_LOGO) {
+						if (obj.tag == Tags.SANDBOX_TEST_MINE) {
+							TestMine mine = obj.GetComponent<TestMine>();
+							if (mine != null) {
+								mine.Play();
+							}
 							if (_audioPlayer.isPlaying) {
 								_audioPlayer.Pause();
 							} else {

@@ -4,21 +4,18 @@ using System.Collections.Generic;
 using Beats2;
 using Beats2.Common;
 
-/*
- * DONE
- */
 namespace Beats2.Graphic {
 
 	/// <summary>
-	/// Sprite object. Creates and wraps tk2D's tk2dSprite class
+	/// Flat sprite object. Creates and wraps tk2D's tk2dSprite class
 	/// </summary>
-	public class Sprite : BaseGraphic {
+	public class SpriteFlat : BaseGraphic {
 
 		protected tk2dSprite _sprite;
-		protected SpriteData _data;
+		protected SpriteFlatData _data;
 		protected Vector3 _dimensions, _dimensionsInit;
 
-		public void Setup(SpriteData data) {
+		public void Setup(SpriteFlatData data) {
 			_data = data;
 			_sprite = gameObject.AddComponent<tk2dSprite>();
 			_sprite.SwitchCollectionAndSprite(data.data, 0);

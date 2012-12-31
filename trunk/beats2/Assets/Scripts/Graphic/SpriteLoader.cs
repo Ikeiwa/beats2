@@ -7,9 +7,6 @@ using System.Collections.Generic;
 using Beats2;
 using Beats2.Common;
 
-/*
- * DONE
- */
 namespace Beats2.Graphic {
 
 	public class SpriteInfo : Attribute {
@@ -26,6 +23,7 @@ namespace Beats2.Graphic {
 		[SpriteInfo("Sandbox_Background",		"Sandbox/Background.jpg", false)] 				SANDBOX_BACKGROUND,
 		[SpriteInfo("Sandbox_Logo",				"Sandbox/Logo.png", false)] 					SANDBOX_LOGO,
 		[SpriteInfo("Sandbox_Arrow",			"Sandbox/Arrow.png", false)] 					SANDBOX_ARROW,
+		[SpriteInfo("Sandbox_Mine",				"Sandbox/Mine.png", false)] 					SANDBOX_MINE,
 		[SpriteInfo("Sandbox_Hold",				"Sandbox/Hold.png", true)] 						SANDBOX_HOLD,
 	}
 
