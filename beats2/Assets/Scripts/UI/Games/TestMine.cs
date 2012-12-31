@@ -8,6 +8,7 @@ using Beats2.Graphic;
 namespace Beats2.UI {
 	
 	public class TestMine : BeatsObject<SpriteAnim> {
+		private const string NAME = "_TestMine";
 
 		private static SpriteAnimData _data;
 
@@ -15,13 +16,13 @@ namespace Beats2.UI {
 			// Create SpriteData
 			float width = Screens.min * 0.20f;
 			Texture2D texture = SpriteLoader.GetTexture(Sprites.SANDBOX_MINE);
-			_data = new SpriteAnimData("TestMine", texture, width, 8);
+			_data = new SpriteAnimData(NAME, texture, width, 8);
 		}
 
 		public static TestMine Instantiate() {
 			// Create GameObject
 			GameObject obj = new GameObject();
-			obj.name = "TestMine";
+			obj.name = NAME;
 			obj.tag = Tags.SANDBOX_TEST_MINE;
 
 			// Add TestMine Component

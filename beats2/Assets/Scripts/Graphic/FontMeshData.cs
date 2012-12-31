@@ -8,19 +8,18 @@ using Beats2.Common;
 namespace Beats2.Graphic {
 
 	/// <summary>
-	/// TextData. Wraps tk2d's tk2dFontData
+	/// FontMeshData. Wraps tk2d's tk2dFontData
 	/// </summary>
-	public class TextData {
+	public class FontMeshData {
 		public tk2dFontData data;
 		public float width, height;
 
-		public TextData(string imgUrl, string textUrl) : this(SpriteLoader.LoadTexture(imgUrl, false), Loader.LoadText(textUrl)) {}
-		public TextData(Texture2D texture, string textInfo) {
+		public FontMeshData(string name, Texture2D texture, string fontMeshInfo) {
 			GameObject obj = new GameObject();
-			obj.name = "TextData";
+			obj.name = String.Format("DataFontMesh{0}", name);
 			this.data = obj.AddComponent<tk2dFontData>();
 
-			FontInfo fontInfo = FontBuilder.ParseBMFont(textInfo);
+			FontInfo fontInfo = FontBuilder.ParseBMFont(fontMeshInfo);
 			FontBuilder.BuildFont(fontInfo, data, 1, 0, false, false, null, 0);
 
 			Material fontMaterial = new Material(Shader.Find("tk2d/BlendVertexColor"));

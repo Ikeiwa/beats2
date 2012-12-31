@@ -7,16 +7,16 @@ using Beats2.Common;
 namespace Beats2.Graphic {
 
 	/// <summary>
-	/// Text object. Creates and wraps tk2D's tk2dTextMesh class
+	/// Font mesh object. Creates and wraps tk2D's tk2dTextMesh class
 	/// </summary>
-	public class Text : BaseGraphic {
+	public class FontMesh : BaseGraphic {
 
 		protected tk2dTextMesh _sprite;
-		protected TextData _data;
+		protected FontMeshData _data;
 		protected Vector3 _dimensions, _dimensionsInit;
 		private bool _commit;
 
-		public void Setup(TextData data, float fontWidth, float fontHeight, TextAnchor anchor) {
+		public void Setup(FontMeshData data, float fontWidth, float fontHeight, TextAnchor anchor) {
 			_data = data;
 			_sprite = gameObject.AddComponent<tk2dTextMesh>();
 			_sprite.font = _data.data;

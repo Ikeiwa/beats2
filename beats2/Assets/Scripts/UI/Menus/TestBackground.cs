@@ -8,13 +8,14 @@ using Beats2.Graphic;
 namespace Beats2.UI {
 	
 	public class TestBackground : BeatsObject<SpriteFlat> {
+		private const string NAME = "_TestBackground";
 
 		private SpriteFlatData _data;
 
 		public static TestBackground Instantiate() {
 			// Create GameObject
 			GameObject obj = new GameObject();
-			obj.name = "TestBackground";
+			obj.name = NAME;
 			obj.tag = Tags.UNTAGGED;
 
 			// Add TestBackground Component
@@ -23,9 +24,9 @@ namespace Beats2.UI {
 			// Create SpriteData
 			Texture2D texture = SpriteLoader.GetTexture(Sprites.SANDBOX_BACKGROUND);
 			if (Screens.width > Screens.height) {
-				beatsObj._data = new SpriteFlatData("TestBackground", texture, Screens.width, 0f, ScaleType.SCALED_WIDTH);
+				beatsObj._data = new SpriteFlatData(NAME, texture, Screens.width, 0f, ScaleType.SCALED_WIDTH);
 			} else {
-				beatsObj._data = new SpriteFlatData("TestBackground", texture, 0f, Screens.height, ScaleType.SCALED_HEIGHT);
+				beatsObj._data = new SpriteFlatData(NAME, texture, 0f, Screens.height, ScaleType.SCALED_HEIGHT);
 			}
 
 			// Add Sprite Component
