@@ -3,25 +3,22 @@ using System;
 using System.Collections.Generic;
 using Beats2;
 using Beats2.Common;
+using Beats2.Data;
 
 namespace Beats2.UI {
 	
 	public class AudioPlayer : MonoBehaviour {
 
 		private AudioSource _audioSrc;
-		private List<string> _audioUrls;
-		private Dictionary<int, AudioClip> _audioClips;
 
 		public static AudioPlayer Instantiate() {
 			// Create GameObject
 			GameObject obj = new GameObject();
-			obj.name = "MusicPlayer";
+			obj.name = "_AudioPlayer";
 			obj.tag = Tags.MENU_MUSIC_PLAYER;
 
 			// Add AudioPlayer Component
 			AudioPlayer audioPlayer = obj.AddComponent<AudioPlayer>();
-			audioPlayer._audioUrls = new List<string>();
-			audioPlayer._audioClips = new Dictionary<int, AudioClip>();
 
 			// Add AudioSource Component
 			AudioSource audioSrc = obj.AddComponent<AudioSource>();
@@ -30,22 +27,11 @@ namespace Beats2.UI {
 			return audioPlayer;
 		}
 
-		public int Load(string audioUrl) {
-			int id = audioUrl.GetHashCode();
-			if (_audioClips.ContainsKey(id)) {
-				return id;
-			}
-
-			AudioClip audio = Loader.LoadAudio(audioUrl);
-			_audioClips.Add(id, audio);
-			_audioUrls.Add(audioUrl);
-			_audioSrc.clip = audio;
-			return id;
+		public void Set(Audio audio) {
+			_audioSrc.clip = AudioLoader.GetAudioClip(audio);
 		}
 
-		public void Set(int audioId) {
-			AudioClip clip;
-			_audioClips.TryGetValue(audioId, out clip);
+		public void Set(AudioClip clip) {
 			_audioSrc.clip = clip;
 		}
 
@@ -84,12 +70,7 @@ namespace Beats2.UI {
 			set { _audioSrc.time = value; }
 		}
 
-		public void Destroy(bool unloadAudio) {
-			if (unloadAudio) {
-				foreach (string audioUrl in _audioUrls) {
-					Loader.UnloadAudio(audioUrl);
-				}
-			}
+		public void Destroy() {
 			UnityEngine.Object.Destroy(gameObject);
 		}
 

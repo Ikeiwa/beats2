@@ -7,19 +7,20 @@ using Beats2.Graphic;
 
 namespace Beats2.UI {
 	
-	public class TestText : BeatsObject<Text> {
+	public class TestText : BeatsObject<FontMesh> {
+		private const string NAME = "_TestText";
 
-		public static TestText Instantiate(TextData data, string text, float fontWidth, float fontHeight, TextAnchor anchor) {
+		public static TestText Instantiate(FontMeshData data, string text, float fontWidth, float fontHeight, TextAnchor anchor) {
 			// Create GameObject
 			GameObject obj = new GameObject();
-			obj.name = "TestText";
+			obj.name = text;
 			obj.tag = Tags.UNTAGGED;
 
 			// Add TestText Component
 			TestText beatsObj = obj.AddComponent<TestText>();
 
 			// Add Sprite Component
-			Text sprite = obj.AddComponent<Text>();
+			FontMesh sprite = obj.AddComponent<FontMesh>();
 			sprite.Setup(data, fontWidth, fontHeight, anchor);
 			sprite.text = text;
 			beatsObj._sprite = sprite;

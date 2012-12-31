@@ -4,6 +4,7 @@ using System.IO;
 using System.Collections.Generic;
 using Beats2;
 using Beats2.Common;
+using Beats2.Data;
 using Beats2.Graphic;
 using Beats2.UI;
 
@@ -29,6 +30,7 @@ namespace Beats2.Scenes {
 			Vibrator.Init();
 			Tracker.Init();
 			SpriteLoader.Init();
+			AudioLoader.Init();
 		}
 
 		public virtual void Update() {}

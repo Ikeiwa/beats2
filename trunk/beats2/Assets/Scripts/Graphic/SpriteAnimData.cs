@@ -63,7 +63,7 @@ namespace Beats2.Graphic {
 
 			tk2dRuntime.SpriteCollectionSize size = tk2dRuntime.SpriteCollectionSize.ForTk2dCamera();
 			this.data = tk2dRuntime.SpriteCollectionGenerator.CreateFromTexture(texture, size, names, regions, anchors);
-			this.data.gameObject.name = String.Format("Data_{0}", name);
+			this.data.gameObject.name = String.Format("DataSpriteAnim{0}", name);
 
 			tk2dSpriteAnimationFrame[] animationFrames = new tk2dSpriteAnimationFrame[frames];
 			for (int i = 0; i < frames; i++) {

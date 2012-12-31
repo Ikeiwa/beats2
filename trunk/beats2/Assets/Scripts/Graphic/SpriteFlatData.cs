@@ -54,7 +54,7 @@ namespace Beats2.Graphic {
 
 			tk2dRuntime.SpriteCollectionSize size = tk2dRuntime.SpriteCollectionSize.ForTk2dCamera();
 			this.data = tk2dRuntime.SpriteCollectionGenerator.CreateFromTexture(texture, size, region, anchor);
-			this.data.gameObject.name = String.Format("Data_{0}", name);
+			this.data.gameObject.name = String.Format("DataSpriteFlat{0}", name);
 		}
 
 		/// <summary>

@@ -8,6 +8,7 @@ using Beats2.Graphic;
 namespace Beats2.UI {
 	
 	public class TestHold : BeatsObject<SpriteFlat> {
+		private const string NAME = "_TestHold";
 
 		private static Texture2D _texture;
 		private static float _width;
@@ -22,7 +23,7 @@ namespace Beats2.UI {
 		public static TestHold Instantiate(float height) {
 			// Create GameObject
 			GameObject obj = new GameObject();
-			obj.name = "TestHold";
+			obj.name = NAME;
 			obj.tag = Tags.SANDBOX_TEST_HOLD;
 
 			// Add TestHold Component
@@ -30,7 +31,7 @@ namespace Beats2.UI {
 
 			// Add Sprite Component
 			SpriteFlat sprite = obj.AddComponent<SpriteFlat>();
-			SpriteFlatData data = new SpriteFlatData("TestHold", _texture, _width, height);
+			SpriteFlatData data = new SpriteFlatData(NAME, _texture, _width, height);
 			sprite.Setup(data);
 			beatsObj._sprite = sprite;
 			beatsObj._data = data;

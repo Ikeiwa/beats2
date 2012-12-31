@@ -4,6 +4,7 @@ using System.IO;
 using System.Collections.Generic;
 using Beats2;
 using Beats2.Common;
+using Beats2.Data;
 using Beats2.Graphic;
 using Beats2.UI;
 
@@ -26,7 +27,6 @@ namespace Beats2.Scenes {
 		private float _addTimer;
 		private const float ADD_INTERVAL = 0.3f;
 		private const float SCREEN_DURATION = 5f;
-		private const string TAG_NOTE = "Arrow";
 		private TestArrow _randomArrow;
 		private TestHold _hold1, _hold2;
 		private TestText _audioTime, _touchLog, _collisionLog, _sysInfo;
@@ -46,8 +46,8 @@ namespace Beats2.Scenes {
 			Inputs.SetKeyListeners(_keyListeners);
 
 			// Beats logo
-			Logo.Init();
-			Logo logo = Logo.Instantiate();
+			TestLogo.Init();
+			TestLogo logo = TestLogo.Instantiate();
 			logo.position = new Vector3(Screens.xmid, Screens.ymid, Screens.zmin);
 
 			// Arrow in each corner
@@ -58,27 +58,27 @@ namespace Beats2.Scenes {
 					float posY = (y == 0) ? Screens.ymin : (y == 1) ? Screens.ymid : Screens.ymax;
 					float posZ = Screens.zmin;
 					TestArrow arrow = TestArrow.Instantiate();
-					arrow.name = String.Format("Arrow({0}, {1})", x, y);
+					arrow.name = String.Format("_arrow({0}, {1})", x, y);
 					arrow.position = new Vector3(posX, posY, posZ);
 				}
 			}
 			_randomArrow = TestArrow.Instantiate();
-			_randomArrow.name = "randomArrow";
+			_randomArrow.name = "_randomArrow";
 			_randomArrow.position = new Vector3(Screens.xmax - 75f, Screens.ymax - 50f, Screens.zmin);
 
 			// Two random holds
 			TestHold.Init();
 			_hold1 = TestHold.Instantiate(Screens.height - _randomArrow.height);
-			_hold1.name = "hold1";
+			_hold1.name = "_hold1";
 			_hold1.position = new Vector3(Screens.xmax - (_hold1.width / 2), Screens.ymid, Screens.zmid);
 
 			_hold2 = TestHold.Instantiate(_randomArrow.height * 4);
-			_hold2.name = "hold2";
+			_hold2.name = "_hold2";
 			_hold2.position = new Vector3(_hold1.x - _hold1.width * 2, Screens.ymid, Screens.zmid);
 
 			// Background image
 			TestBackground background = TestBackground.Instantiate();
-			background.name = "background2";
+			background.name = "_background2";
 			background.position = new Vector3(Screens.xmid, Screens.ymid, Screens.zmax);
 			background.color = new Color(background.color.r, background.color.g, background.color.b, 0.75f);
 
@@ -88,25 +88,27 @@ namespace Beats2.Scenes {
 			_arrowCount = 0;
 
 			// Text label
-			TextData squareTextData = new TextData(
-				SysInfo.GetPath("Sandbox/Square.png"),
-				SysInfo.GetPath("Sandbox/Square.fnt")
+			FontMeshData squareTextData = new FontMeshData(
+				"_SquareFont",
+				SpriteLoader.LoadTexture(SysInfo.GetPath("Sandbox/Square.png"), false),
+				Loader.LoadText(SysInfo.GetPath("Sandbox/Square.fnt"))
 				);
 			float textWidth = squareTextData.width * (_randomArrow.height / 2) / squareTextData.height;
 			float textHeight = (_randomArrow.height / 2);
 
 			_sysInfo = TestText.Instantiate(
 				squareTextData,
-				SysInfo.InfoString(),
+				"_SysInfo",
 				textWidth * 0.7f, textHeight * 0.7f,
 				TextAnchor.UpperLeft
 				);
 			_sysInfo.position = new Vector3(Screens.xmin, Screens.ymax, Screens.zdebug);
 			_sysInfo.color = new Color(1f, 1f, 1f, 0.5f); // Semi-transparent Gray
+			_sysInfo.text = SysInfo.InfoString();
 
 			_audioTime = TestText.Instantiate(
 				squareTextData,
-				"AudioTime",
+				"_AudioTime",
 				textWidth, textHeight,
 				TextAnchor.LowerLeft
 				);
@@ -114,7 +116,7 @@ namespace Beats2.Scenes {
 
 			_touchLog = TestText.Instantiate(
 				squareTextData,
-				"Touch Log",
+				"_Touch Log",
 				textWidth, textHeight,
 				TextAnchor.LowerLeft
 				);
@@ -123,7 +125,7 @@ namespace Beats2.Scenes {
 
 			_collisionLog = TestText.Instantiate(
 				squareTextData,
-				"Collision Log",
+				"_Collision Log",
 				textWidth, textHeight,
 				TextAnchor.LowerRight
 				);
@@ -136,13 +138,7 @@ namespace Beats2.Scenes {
 
 			// Load music
 			_audioPlayer = AudioPlayer.Instantiate();
-#if UNITY_ANDROID
-			// Android only supports .mp3
-			_audioPlayer.Load(SysInfo.GetPath("Sandbox/Song.mp3"));
-# else
-			// TODO: Add MP3 support through FMOD
-			_audioPlayer.Load(SysInfo.GetPath("Sandbox/Song.ogg"));
-#endif
+			_audioPlayer.Set(Audio.SANDBOX_SONG);
 			_audioPlayer.loop = true;
 			_audioPlayer.Play();
 
@@ -219,7 +215,7 @@ namespace Beats2.Scenes {
 			if (_addTimer <= 0) {
 				for (int i = 0; i < 4; i++) {
 					TestArrow arrow = TestArrow.Instantiate();
-					arrow.name = "arrow" + _arrowCount;
+					arrow.name = "_arrow" + _arrowCount;
 					arrow.position = new Vector3(Screens.width / 4 + arrow.width * i, Screens.ymax + arrow.height, Screens.zmid);
 					arrow.tag = Tags.SANDBOX_TEST_ARROW;
 					_arrowCount++;

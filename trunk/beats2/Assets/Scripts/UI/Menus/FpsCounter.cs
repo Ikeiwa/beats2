@@ -7,17 +7,18 @@ using Beats2.Graphic;
 
 namespace Beats2.UI {
 
-	public class FpsCounter : BeatsObject<Text> {
+	public class FpsCounter : BeatsObject<FontMesh> {
+		private const string NAME = "_FpsCounter";
 
 		private float _updateDiff;
 		private float _timeDiff;
 		private int _frameDiff;
 		private float FPS_UPDATE_INTERVAL;
 
-		public static FpsCounter Instantiate(TextData data, float fontHeight) {
+		public static FpsCounter Instantiate(FontMeshData data, float fontHeight) {
 			// Create GameObject
 			GameObject obj = new GameObject();
-			obj.name = "FPS Counter";
+			obj.name = NAME;
 			obj.tag = Tags.UNTAGGED;
 
 			// Add FpsCounter Component
@@ -26,7 +27,7 @@ namespace Beats2.UI {
 			beatsObj.ResetCounter();
 
 			// Add Sprite Component
-			Text sprite = obj.AddComponent<Text>();
+			FontMesh sprite = obj.AddComponent<FontMesh>();
 			sprite.Setup(data, data.width * fontHeight / data.height, fontHeight, TextAnchor.UpperRight);
 			sprite.text = "XXX.XX FPS";
 			beatsObj._sprite = sprite;

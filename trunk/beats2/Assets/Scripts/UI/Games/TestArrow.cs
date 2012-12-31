@@ -8,6 +8,7 @@ using Beats2.Graphic;
 namespace Beats2.UI {
 	
 	public class TestArrow : BeatsObject<SpriteAnim> {
+		private const string NAME = "_TestArrow";
 
 		private static SpriteAnimData _data;
 
@@ -15,13 +16,13 @@ namespace Beats2.UI {
 			// Create SpriteData
 			float width = Screens.min * 0.10f;
 			Texture2D texture = SpriteLoader.GetTexture(Sprites.SANDBOX_ARROW);
-			_data = new SpriteAnimData("TestArrow", texture, width, 4, true, 1f);
+			_data = new SpriteAnimData(NAME, texture, width, 4, true, 1f);
 		}
 
 		public static TestArrow Instantiate() {
 			// Create GameObject
 			GameObject obj = new GameObject();
-			obj.name = "TestArrow";
+			obj.name = NAME;
 			obj.tag = Tags.SANDBOX_TEST_ARROW;
 
 			// Add TestArrow Component
