@@ -147,10 +147,8 @@ namespace Beats2.Scenes {
 			_mine = TestMine.Instantiate();
 			_mine.gameObject.transform.position = new Vector3(Screens.xmid, (Screens.ymin + Screens.ymid) / 2, Screens.zmin - 10);
 
-			IniFile testIniFile = new IniFile(SysInfo.GetPath("Sandbox/Test.ini"));
-			List<string> testValues = new List<string>();
-			testValues.Add("MODIFIED");
-			testIniFile.Set("Beats", "Version", testValues);
+			SettingsFile testIniFile = new SettingsFile(SysInfo.GetPath("Sandbox/Test.ini"));
+			testIniFile.Set("Beats", "Version", "MODIFIED");
 			testIniFile.Write(SysInfo.GetPath("Sandbox/Test2.ini"));
 		}
 		
