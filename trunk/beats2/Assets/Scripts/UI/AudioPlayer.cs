@@ -3,7 +3,7 @@ using System;
 using System.Collections.Generic;
 using Beats2;
 using Beats2.Common;
-using Beats2.Data;
+using Beats2.Audio;
 
 namespace Beats2.UI {
 	
@@ -27,7 +27,7 @@ namespace Beats2.UI {
 			return audioPlayer;
 		}
 
-		public void Set(Audio audio) {
+		public void Set(AudioClips audio) {
 			_audioSrc.clip = AudioLoader.GetAudioClip(audio);
 		}
 

@@ -7,7 +7,7 @@ using System.Collections.Generic;
 using Beats2;
 using Beats2.Common;
 
-namespace Beats2.Data {
+namespace Beats2.Audio {
 
 	public class AudioInfo : Attribute {
 		public string name, path;
@@ -20,13 +20,13 @@ namespace Beats2.Data {
 		}
 	}
 
-	public enum Audio {
+	public enum AudioClips {
 		[AudioInfo("Sandbox_Song", "Sandbox/Song.mp3", true, true)] SANDBOX_SONG,
 	}
 
 	public static class AudioLoader {
 		private const string TAG = "AudioLoader";
-		private static Dictionary<Audio, AudioClip> _audioCache;
+		private static Dictionary<AudioClips, AudioClip> _audioCache;
 
 		public static void Init() {
 			Reset();
@@ -39,12 +39,12 @@ namespace Beats2.Data {
 		}
 
 		private static void PreloadAudio() {
-			int numAudio = Enum.GetNames(typeof(Audio)).Length;
-			_audioCache = new Dictionary<Audio, AudioClip>(numAudio);
+			int numAudio = Enum.GetNames(typeof(AudioClips)).Length;
+			_audioCache = new Dictionary<AudioClips, AudioClip>(numAudio);
 
-			foreach (Audio audio in Enum.GetValues(typeof(Audio))) {
+			foreach (AudioClips audio in Enum.GetValues(typeof(AudioClips))) {
 				// Reflection magic!
-				MemberInfo memberInfo = typeof(Audio).GetMember(audio.ToString()).FirstOrDefault();
+				MemberInfo memberInfo = typeof(AudioClips).GetMember(audio.ToString()).FirstOrDefault();
 				AudioInfo audioInfo = (AudioInfo)Attribute.GetCustomAttribute(memberInfo, typeof(AudioInfo));
 
 				string path = SysInfo.GetPath(audioInfo.path);
@@ -66,7 +66,7 @@ namespace Beats2.Data {
 			return clip;
 		}
 
-		public static AudioClip GetAudioClip(Audio audio) {
+		public static AudioClip GetAudioClip(AudioClips audio) {
 			AudioClip clip;
 			if (!_audioCache.TryGetValue(audio, out clip)) {
 				Logger.Error(TAG, String.Format("Unable to fetch audio clip \"{0}\"", audio));

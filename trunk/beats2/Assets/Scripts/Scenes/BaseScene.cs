@@ -4,6 +4,7 @@ using System.IO;
 using System.Collections.Generic;
 using Beats2;
 using Beats2.Common;
+using Beats2.Audio;
 using Beats2.Data;
 using Beats2.Graphic;
 using Beats2.UI;
