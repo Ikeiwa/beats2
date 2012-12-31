@@ -14,15 +14,17 @@ namespace Beats2.Graphic {
 		public tk2dFontData data;
 		public float width, height;
 
-		public FontMeshData(string name, Texture2D texture, string fontMeshInfo) {
+		public FontMeshData(string name, string fontBitmapPath, string fontInfoPath) {
 			GameObject obj = new GameObject();
 			obj.name = String.Format("DataFontMesh{0}", name);
 			this.data = obj.AddComponent<tk2dFontData>();
 
-			FontInfo fontInfo = FontBuilder.ParseBMFont(fontMeshInfo);
+			FontInfo fontInfo = FontBuilder.ParseBMFont(fontInfoPath);
 			FontBuilder.BuildFont(fontInfo, data, 1, 0, false, false, null, 0);
 
 			Material fontMaterial = new Material(Shader.Find("tk2d/BlendVertexColor"));
+			Texture2D texture = SpriteLoader.LoadTexture(fontBitmapPath, false);
+
 			fontMaterial.mainTexture = texture;
 			this.data.material = fontMaterial;
 			this.width = this.data.largestWidth;

@@ -198,13 +198,11 @@ namespace Beats2.Common {
 		}
 
 		public static string GetPath(string fileName) {
-			string filePath = String.Format("{0}{1}{2}", dataPath, Path.AltDirectorySeparatorChar, fileName);
-			if (File.Exists(filePath)) {
-				return FILE_PROTOCOL + filePath;
-			} else {
-				Logger.Error(TAG, String.Format("Unable to find file \"{0}\"", filePath));
-				return null;
-			}
+			return String.Format("{0}{1}{2}", dataPath, Path.AltDirectorySeparatorChar, fileName);
+		}
+
+		public static string GetWwwPath(string url) {
+			return String.Format("{0}{1}", SysInfo.FILE_PROTOCOL, url.Replace('/', Path.AltDirectorySeparatorChar));
 		}
 
 		public static string InfoString() {

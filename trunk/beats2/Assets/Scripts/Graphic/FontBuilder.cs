@@ -45,13 +45,11 @@ namespace Beats2.Graphic
 			return "";
 		}
 		
-		public static FontInfo Parse(string text)
+		public static FontInfo Parse(string path)
 		{
 			FontInfo fontInfo = new FontInfo();
 			
-			//System.IO.FileInfo finfo = new System.IO.FileInfo(path);
-			//System.IO.StreamReader reader = finfo.OpenText();
-			StringReader reader = new StringReader(text);
+			StreamReader reader = new StreamReader(path);
 
 			string line;
 			while ((line = reader.ReadLine()) != null) 
