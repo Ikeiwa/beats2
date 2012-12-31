@@ -4,9 +4,6 @@ using System.Collections.Generic;
 using Beats2;
 using Beats2.Common;
 
-/*
- * DONE
- */
 namespace Beats2.Common {
 
 	/// <summary>
@@ -31,7 +28,7 @@ namespace Beats2.Common {
 		public struct KeyEvent {
 			public KeyCode key { get; private set; }
 			public KeyState state { get; private set; }
-			public KeyEvent(KeyCode _key, KeyState _state) {
+			public KeyEvent(KeyCode _key, KeyState _state) : this() {
 				key = _key;
 				state = _state;
 			}
@@ -45,7 +42,7 @@ namespace Beats2.Common {
 			public Vector2 position { get; private set; }
 			public Vector2 velocity { get; private set; }
 			public TouchState state { get; private set; }
-			public TouchEvent(int _touchId, Vector2 _position, Vector2 _velocity, TouchState _state) {
+			public TouchEvent(int _touchId, Vector2 _position, Vector2 _velocity, TouchState _state) : this() {
 				touchId = _touchId;
 				position = _position;
 				velocity = _velocity;

@@ -7,11 +7,11 @@ using Beats2.Graphic;
 
 namespace Beats2.UI {
 	
-	public class TestHold : BeatsObject<Sprite> {
+	public class TestHold : BeatsObject<SpriteFlat> {
 
 		private static Texture2D _texture;
 		private static float _width;
-		private SpriteData _data;
+		private SpriteFlatData _data;
 
 		public static void Init() {
 			// Create SpriteData
@@ -29,8 +29,8 @@ namespace Beats2.UI {
 			TestHold beatsObj = obj.AddComponent<TestHold>();
 
 			// Add Sprite Component
-			Sprite sprite = obj.AddComponent<Sprite>();
-			SpriteData data = new SpriteData(_texture, _width, height);
+			SpriteFlat sprite = obj.AddComponent<SpriteFlat>();
+			SpriteFlatData data = new SpriteFlatData("TestHold", _texture, _width, height);
 			sprite.Setup(data);
 			beatsObj._sprite = sprite;
 			beatsObj._data = data;

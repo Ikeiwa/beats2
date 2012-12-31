@@ -29,6 +29,7 @@ namespace Beats2.Common {
 		public static string MENU_LOGO				= "Menu_Logo";
 		public static string MENU_MUSIC_PLAYER		= "Menu_MusicPlayer";
 		public static string SANDBOX_TEST_ARROW		= "Sandbox_TestArrow";
+		public static string SANDBOX_TEST_MINE		= "Sandbox_TestMine";
 		public static string SANDBOX_TEST_HOLD		= "Sandbox_TestHold";
 	}
 
@@ -38,15 +39,7 @@ namespace Beats2.Common {
 	public static class Constants {
 		public static string APP_NAME				= "Beats2";
 		public static string APP_VERSION_NUM		= "1";
-		public static string APP_VERSION_NAME		= "TEST-VER";
-		public static string RANKING_FAIL			= "FAIL";
-		public static string RANKING_AAA			= "AAA";
-		public static string RANKING_AA				= "AA";
-		public static string RANKING_A				= "A";
-		public static string RANKING_B				= "B";
-		public static string RANKING_C				= "C";
-		public static string RANKING_D				= "D";
-		
+		public static string APP_VERSION_NAME		= "TEST-VER";		
 	}
 	
 }

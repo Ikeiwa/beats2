@@ -7,30 +7,29 @@ using Beats2.Graphic;
 
 namespace Beats2.UI {
 	
-	public class TestArrow : BeatsObject<SpriteAnim> {
+	public class TestMine : BeatsObject<SpriteAnim> {
 
 		private static SpriteAnimData _data;
 
 		public static void Init() {
 			// Create SpriteData
-			float width = Screens.min * 0.10f;
-			Texture2D texture = SpriteLoader.GetTexture(Sprites.SANDBOX_ARROW);
-			_data = new SpriteAnimData("TestArrow", texture, width, 4, true, 1f);
+			float width = Screens.min * 0.20f;
+			Texture2D texture = SpriteLoader.GetTexture(Sprites.SANDBOX_MINE);
+			_data = new SpriteAnimData("TestMine", texture, width, 8);
 		}
 
-		public static TestArrow Instantiate() {
+		public static TestMine Instantiate() {
 			// Create GameObject
 			GameObject obj = new GameObject();
-			obj.name = "TestArrow";
-			obj.tag = Tags.SANDBOX_TEST_ARROW;
+			obj.name = "TestMine";
+			obj.tag = Tags.SANDBOX_TEST_MINE;
 
-			// Add TestArrow Component
-			TestArrow beatsObj = obj.AddComponent<TestArrow>();
+			// Add TestMine Component
+			TestMine beatsObj = obj.AddComponent<TestMine>();
 
 			// Add Sprite Component
 			SpriteAnim sprite = obj.AddComponent<SpriteAnim>();
 			sprite.Setup(_data);
-			sprite.Play();
 			beatsObj._sprite = sprite;
 
 			// Add BoxCollider
@@ -40,6 +39,10 @@ namespace Beats2.UI {
 
 			// Return instantiated BeatsObject
 			return beatsObj;
+		}
+
+		public void Play() {
+			_sprite.Play();
 		}
 
 		public static void Cleanup() {

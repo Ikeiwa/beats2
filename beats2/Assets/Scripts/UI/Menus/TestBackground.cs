@@ -7,9 +7,9 @@ using Beats2.Graphic;
 
 namespace Beats2.UI {
 	
-	public class TestBackground : BeatsObject<Sprite> {
+	public class TestBackground : BeatsObject<SpriteFlat> {
 
-		private SpriteData _data;
+		private SpriteFlatData _data;
 
 		public static TestBackground Instantiate() {
 			// Create GameObject
@@ -23,13 +23,13 @@ namespace Beats2.UI {
 			// Create SpriteData
 			Texture2D texture = SpriteLoader.GetTexture(Sprites.SANDBOX_BACKGROUND);
 			if (Screens.width > Screens.height) {
-				beatsObj._data = new SpriteData(texture, Screens.width, 0f, ScaleType.SCALED_WIDTH);
+				beatsObj._data = new SpriteFlatData("TestBackground", texture, Screens.width, 0f, ScaleType.SCALED_WIDTH);
 			} else {
-				beatsObj._data = new SpriteData(texture, 0f, Screens.height, ScaleType.SCALED_HEIGHT);
+				beatsObj._data = new SpriteFlatData("TestBackground", texture, 0f, Screens.height, ScaleType.SCALED_HEIGHT);
 			}
 
 			// Add Sprite Component
-			Sprite sprite = obj.AddComponent<Sprite>();
+			SpriteFlat sprite = obj.AddComponent<SpriteFlat>();
 			sprite.Setup(beatsObj._data);
 			beatsObj._sprite = sprite;
 
