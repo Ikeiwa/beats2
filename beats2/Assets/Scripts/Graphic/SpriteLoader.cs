@@ -61,7 +61,7 @@ namespace Beats2.Graphic {
 
 		public static Texture2D LoadTexture(string url, bool repeat) {
 			Texture2D texture;
-			WWW www = new WWW(url.Replace('/', Path.AltDirectorySeparatorChar));
+			WWW www = new WWW(SysInfo.GetWwwPath(url));
 			while (!www.isDone); // FIXME: Blocks, thread this?
 			texture = www.texture; // Compare with www.LoadImageIntoTexture(texture)?
 			texture.wrapMode = (repeat) ? TextureWrapMode.Repeat : TextureWrapMode.Clamp;

@@ -59,7 +59,7 @@ namespace Beats2.Data {
 
 		public static AudioClip LoadAudio(string url, bool stream) {
 			AudioClip clip;
-			WWW www = new WWW(url.Replace('/', Path.AltDirectorySeparatorChar));
+			WWW www = new WWW(SysInfo.GetWwwPath(url));
 			while (!www.isDone); // FIXME: Blocks, thread this?
 			clip = www.GetAudioClip(false, stream);
 			www.Dispose();

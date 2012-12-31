@@ -90,8 +90,8 @@ namespace Beats2.Scenes {
 			// Text label
 			FontMeshData squareTextData = new FontMeshData(
 				"_SquareFont",
-				SpriteLoader.LoadTexture(SysInfo.GetPath("Sandbox/Square.png"), false),
-				Loader.LoadText(SysInfo.GetPath("Sandbox/Square.fnt"))
+				SysInfo.GetPath("Sandbox/Square.png"),
+				SysInfo.GetPath("Sandbox/Square.fnt")
 				);
 			float textWidth = squareTextData.width * (_randomArrow.height / 2) / squareTextData.height;
 			float textHeight = (_randomArrow.height / 2);
@@ -145,6 +145,12 @@ namespace Beats2.Scenes {
 			TestMine.Init();
 			_mine = TestMine.Instantiate();
 			_mine.gameObject.transform.position = new Vector3(Screens.xmid, (Screens.ymin + Screens.ymid) / 2, Screens.zmin - 10);
+
+			IniFile testIniFile = new IniFile(SysInfo.GetPath("Sandbox/Test.ini"));
+			List<string[]> testValues = new List<string[]>();
+			testValues.Add(new string[] {"MODIFIED", "VALUE"});
+			testIniFile.Set("Beats", "Version", testValues);
+			testIniFile.Write(SysInfo.GetPath("Sandbox/Test2.ini"));
 		}
 		
 		// Update is called once per frame

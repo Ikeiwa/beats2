@@ -21,7 +21,6 @@ namespace Beats2.Scenes {
 			StringsManager.Init();
 			Screens.Init();
 			SysInfo.Init();
-			Loader.Init();
 
 			// Order doesn't matter
 			Inputs.Init();
