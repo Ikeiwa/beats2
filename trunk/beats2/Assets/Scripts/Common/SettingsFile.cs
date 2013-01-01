@@ -24,38 +24,40 @@ namespace Beats2.Data {
 		}
 
 		private void Parse(string url) {
-			if (File.Exists(url)) {
-				string[] lines = File.ReadAllLines(url);
-				string sectionName = String.Empty;
-				Dictionary<string, string> sectionValues = new Dictionary<string, string>();
-				foreach (string lineRaw in lines) {
-					string line = lineRaw.Trim();
-					if (line.Length == 0) { // Empty line
-						continue;
-					} else if (COMMENT_CHARS.IndexOf(line[0]) != -1) { // Comment
-						continue;
-					} else if (line[0] == '[') { // Section start
-						if (line.IndexOf(']') != -1) {
-							sectionName = line.Substring(line.IndexOf('[') + 1, line.IndexOf(']') - 1);
-							if (!_content.ContainsKey(sectionName)) {
-								sectionValues = new Dictionary<string, string>();
-								_content.Add(sectionName, sectionValues);
-							}
+			StreamReader reader = new StreamReader(url);
+
+			string line;
+			string sectionName = String.Empty;
+			Dictionary<string, string> sectionValues = new Dictionary<string, string>();
+
+			while ((line = reader.ReadLine()) != null) {
+				line = line.Trim();
+				if (line.Length == 0) { // Empty line
+					continue;
+				} else if (COMMENT_CHARS.IndexOf(line[0]) != -1) { // Comment
+					continue;
+				} else if (line[0] == '[') { // Section start
+					if (line.IndexOf(']') != -1) {
+						sectionName = line.Substring(line.IndexOf('[') + 1, line.IndexOf(']') - 1);
+						if (!_content.ContainsKey(sectionName)) {
+							sectionValues = new Dictionary<string, string>();
+							_content.Add(sectionName, sectionValues);
 						}
-					} else { // Key-value pair
-						if (line.IndexOf('=') != -1) {
-							int indexEquals = line.IndexOf('=');
-							string key = line.Substring(0, indexEquals);
-							string val = line.Substring(indexEquals + 1);
-							if (!_content[sectionName].ContainsKey(key)) {
-								_content[sectionName][key] = val;
-							} else {
-								_content[sectionName].Add(key, val);
-							}
+					}
+				} else { // Key-value pair
+					if (line.IndexOf('=') != -1) {
+						int indexEquals = line.IndexOf('=');
+						string key = line.Substring(0, indexEquals);
+						string val = line.Substring(indexEquals + 1);
+						if (!_content[sectionName].ContainsKey(key)) {
+							_content[sectionName][key] = val;
+						} else {
+							_content[sectionName].Add(key, val);
 						}
 					}
 				}
 			}
+			reader.Close();
 		}
 
 		public string Get(string section, string key) {
