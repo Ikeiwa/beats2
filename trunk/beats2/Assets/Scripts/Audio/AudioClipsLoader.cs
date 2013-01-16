@@ -48,7 +48,7 @@ namespace Beats2.Audio {
 				AudioInfo audioInfo = (AudioInfo)Attribute.GetCustomAttribute(memberInfo, typeof(AudioInfo));
 
 				string path = SysInfo.GetPath(audioInfo.path);
-#if !UNITY_ANDROID && UNITY_EDITOR
+#if !UNITY_ANDROID
 				// Temporary fix til I use an FMOD plugin
 				path = path.Replace(".mp3", ".ogg");
 #endif
@@ -57,9 +57,9 @@ namespace Beats2.Audio {
 			}
 		}
 
-		public static AudioClip LoadAudio(string url, bool stream) {
+		public static AudioClip LoadAudio(string path, bool stream) {
 			AudioClip clip;
-			WWW www = new WWW(SysInfo.GetWwwPath(url));
+			WWW www = new WWW(SysInfo.GetWwwPath(path));
 			while (!www.isDone); // FIXME: Blocks, thread this?
 			clip = www.GetAudioClip(false, stream);
 			www.Dispose();
