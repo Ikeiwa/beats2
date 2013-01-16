@@ -13,18 +13,16 @@ namespace Beats2.Data {
 	/// </summary>
 	public class SettingsFile {
 		private const string TAG = "IniFile";
-
-		private static string COMMENT_CHARS = ";#/";
-
+		private const string COMMENT_CHARS = ";#/";
 		private Dictionary<string, Dictionary<string, string>> _content;
 
-		public SettingsFile(string url) {
+		public SettingsFile(string path) {
 			_content = new Dictionary<string, Dictionary<string, string>>();
-			Parse(url);
+			Parse(path);
 		}
 
-		private void Parse(string url) {
-			StreamReader reader = new StreamReader(url);
+		private void Parse(string path) {
+			StreamReader reader = new StreamReader(path);
 
 			string line;
 			string sectionName = String.Empty;
