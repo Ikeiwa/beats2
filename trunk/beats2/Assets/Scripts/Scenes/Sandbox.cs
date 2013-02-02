@@ -3,7 +3,7 @@ using System;
 using System.IO;
 using System.Collections.Generic;
 using Beats2;
-using Beats2.Common;
+using Beats2.System;
 using Beats2.Audio;
 using Beats2.Data;
 using Beats2.Graphic;
@@ -154,7 +154,6 @@ namespace Beats2.Scenes {
 		
 		// Update is called once per frame
 		public override void Update() {
-
 			_audioTime.text = String.Format("Time: {0:f3}", _audioPlayer.time);
 
 			//Logger.Log(TAG, _audioPlayer.time);

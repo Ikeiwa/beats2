@@ -2,7 +2,7 @@ using UnityEngine;
 using System;
 using System.Collections.Generic;
 using Beats2;
-using Beats2.Common;
+using Beats2.System;
 
 namespace Beats2.Scenes.Menus {
 	

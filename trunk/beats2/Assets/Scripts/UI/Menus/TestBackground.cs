@@ -2,7 +2,7 @@ using UnityEngine;
 using System;
 using System.Collections.Generic;
 using Beats2;
-using Beats2.Common;
+using Beats2.System;
 using Beats2.Graphic;
 
 namespace Beats2.UI {
@@ -23,7 +23,7 @@ namespace Beats2.UI {
 
 			// Create SpriteData
 			Texture2D texture = SpriteLoader.GetTexture(Sprites.SANDBOX_BACKGROUND);
-			if (Screens.width > Screens.height) {
+			if (Screens.width / texture.width > Screens.height / texture.height) {
 				beatsObj._data = new SpriteFlatData(NAME, texture, Screens.width, 0f, ScaleType.SCALED_WIDTH);
 			} else {
 				beatsObj._data = new SpriteFlatData(NAME, texture, 0f, Screens.height, ScaleType.SCALED_HEIGHT);

@@ -5,7 +5,7 @@ using System.Linq;
 using System.Reflection;
 using System.Collections.Generic;
 using Beats2;
-using Beats2.Common;
+using Beats2.System;
 
 namespace Beats2.Graphic {
 
@@ -53,7 +53,7 @@ namespace Beats2.Graphic {
 				MemberInfo memberInfo = typeof(Sprites).GetMember(sprite.ToString()).FirstOrDefault();
 				SpriteInfo spriteInfo = (SpriteInfo)Attribute.GetCustomAttribute(memberInfo, typeof(SpriteInfo));
 
-				string path = SysInfo.GetPath(spriteInfo.path);
+				string path = SysPath.GetDataPath(spriteInfo.path);
 				Texture2D texture = LoadTexture(path, spriteInfo.repeat);
 				_textureCache.Add(sprite, texture);
 			}
@@ -61,7 +61,7 @@ namespace Beats2.Graphic {
 
 		public static Texture2D LoadTexture(string path, bool repeat) {
 			Texture2D texture;
-			WWW www = new WWW(SysInfo.GetWwwPath(path));
+			WWW www = new WWW(SysPath.GetWwwPath(path));
 			while (!www.isDone); // FIXME: Blocks, thread this?
 			texture = www.texture; // Compare with www.LoadImageIntoTexture(texture)?
 			texture.wrapMode = (repeat) ? TextureWrapMode.Repeat : TextureWrapMode.Clamp;
