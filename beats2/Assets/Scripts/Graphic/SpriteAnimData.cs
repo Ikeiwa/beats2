@@ -3,7 +3,7 @@ using System;
 using System.Collections;
 using System.Collections.Generic;
 using Beats2;
-using Beats2.Common;
+using Beats2.System;
 
 namespace Beats2.Graphic {
 

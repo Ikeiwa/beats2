@@ -2,7 +2,7 @@ using UnityEngine;
 using System;
 using System.Collections.Generic;
 using Beats2;
-using Beats2.Common;
+using Beats2.System;
 using Beats2.Audio;
 
 namespace Beats2.UI {
@@ -28,7 +28,7 @@ namespace Beats2.UI {
 		}
 
 		public void Set(AudioClips audio) {
-			_audioSrc.clip = AudioLoader.GetAudioClip(audio);
+			_audioSrc.clip = AudioLoader.GetAudio(audio).audio;
 		}
 
 		public void Set(AudioClip clip) {

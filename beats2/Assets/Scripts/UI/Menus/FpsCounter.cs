@@ -2,7 +2,7 @@ using UnityEngine;
 using System;
 using System.Collections.Generic;
 using Beats2;
-using Beats2.Common;
+using Beats2.System;
 using Beats2.Graphic;
 
 namespace Beats2.UI {
@@ -51,7 +51,7 @@ namespace Beats2.UI {
 			
 			if (_updateDiff <= 0f) {
 				float fps = _frameDiff / _timeDiff;
-				string text = System.String.Format(
+				string text = string.Format(
 					"{0:f2} FPS",
 					fps
 					);
